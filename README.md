@@ -1,2 +1,2 @@
 # Maiman-PBS
-PIC BenchSoft
+Software to control Maiman Electronics PIC controllers.

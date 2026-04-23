@@ -54,6 +54,4 @@ compile_commands.json
 *_qmlcache.qrc
 
 build/
-*.pro.user
-*.qtc.user
 CMakeLists.txt.user

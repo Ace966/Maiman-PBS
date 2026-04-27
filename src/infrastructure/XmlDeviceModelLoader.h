@@ -4,12 +4,13 @@
 
 #include "domain/DeviceModel.h"
 
-namespace infrastructure::config {
+namespace infrastructure {
 
 class XmlDeviceModelLoader
 {
 public:
-    domain::DeviceModel loadFromFile(const QString& filePath) const;
+    domain::DeviceModel loadFromFile(const QString& filePath,
+                                     const QString& modelId) const;
 };
 
-} // namespace infrastructure::config
+} // namespace infrastructure

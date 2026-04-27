@@ -1,77 +1,156 @@
 <?xml version="1.0" encoding="utf-8"?>
-<DeviceProfile id="pic8_usb" name="PIC-8 USB">
-    <Device>
-        <Variant>PIC-8</Variant>
-        <ChannelCount>8</ChannelCount>
-        <SupportsZeroChannel>true</SupportsZeroChannel>
-    </Device>
+<DeviceProfiles>
+    <DeviceProfile id="pic8_usb" name="PIC-8 USB">
+        <Device>
+            <Variant>PIC-8</Variant>
+            <ChannelCount>8</ChannelCount>
+            <SupportsZeroChannel>true</SupportsZeroChannel>
+        </Device>
 
-    <Transport>
-        <Type>USB</Type>
-        <BaudRate>115200</BaudRate>
-        <DataBits>8</DataBits>
-        <StopBits>1</StopBits>
-        <Parity>none</Parity>
-        <FlowControl>none</FlowControl>
-        <CommandTerminator>\r</CommandTerminator>
-    </Transport>
+        <Transport>
+            <Type>USB</Type>
+            <BaudRate>115200</BaudRate>
+            <DataBits>8</DataBits>
+            <StopBits>1</StopBits>
+            <Parity>none</Parity>
+            <FlowControl>none</FlowControl>
+            <CommandTerminator>\r</CommandTerminator>
+        </Transport>
 
-    <Protocol>
-        <Mode>text-plain</Mode>
-        <SetPrefix>P</SetPrefix>
-        <GetPrefix>J</GetPrefix>
-        <ResponsePrefix>K</ResponsePrefix>
-        <ErrorPrefix>E</ErrorPrefix>
-    </Protocol>
+        <Protocol>
+            <Mode>text-plain</Mode>
+            <SetPrefix>P</SetPrefix>
+            <GetPrefix>J</GetPrefix>
+            <ResponsePrefix>K</ResponsePrefix>
+            <ErrorPrefix>E</ErrorPrefix>
+        </Protocol>
 
-    <GlobalParameters>
-        <Parameter key="serialNumber" code="0701" access="read" />
-        <Parameter key="firmwareVersion" code="0710" access="read" />
-        <Parameter key="lockStatus" code="0800" access="read" />
-        <Parameter key="overcurrentStatus" code="0801" access="read" />
-        <Parameter key="overvoltageStatus" code="0802" access="read" />
-    </GlobalParameters>
+        <GlobalParameters>
+            <Parameter key="serialNumber" code="0701" access="read" />
+            <Parameter key="firmwareVersion" code="0710" access="read" />
+            <Parameter key="lockStatus" code="0800" access="read" />
+            <Parameter key="overcurrentStatus" code="0801" access="read" />
+            <Parameter key="overvoltageStatus" code="0802" access="read" />
+        </GlobalParameters>
 
-    <ZeroChannel>
-        <State code="0001" access="write" />
-        <Actions
-            save="0002"
-            clear="0004"
-            start="0008"
-            stop="0010"
-            selectCC="0020"
-            selectCV="0040" />
-    </ZeroChannel>
+        <ZeroChannel>
+            <State code="0001" access="write" />
+            <Actions
+                save="0002"
+                clear="0004"
+                start="0008"
+                stop="0010"
+                selectCC="0020"
+                selectCV="0040" />
+        </ZeroChannel>
 
-    <ChannelPattern>
-        <StateBase code="0011" step="0010" />
+        <ChannelPattern>
+            <StateBase code="0011" step="0010" />
 
-        <CurrentBases
-            value="0012"
-            maximum="0013"
-            maximumLimit="0014"
-            measured="0015"
-            protection="0016"
-            step="0010"
-            scale="0.1"
-            unit="mA" />
+            <CurrentBases
+                value="0012"
+                maximum="0013"
+                maximumLimit="0014"
+                measured="0015"
+                protection="0016"
+                step="0010"
+                scale="0.1"
+                unit="mA" />
 
-        <VoltageBases
-            value="0017"
-            maximum="0018"
-            maximumLimit="0019"
-            measured="001A"
-            protection="001B"
-            step="0010"
-            scale="0.01"
-            unit="V" />
+            <VoltageBases
+                value="0017"
+                maximum="0018"
+                maximumLimit="0019"
+                measured="001A"
+                protection="001B"
+                step="0010"
+                scale="0.01"
+                unit="V" />
 
-        <StateActions
-            start="0008"
-            stop="0010"
-            selectCC="0020"
-            selectCV="0040"
-            followZero="0600"
-            ignoreZero="0800" />
-    </ChannelPattern>
-</DeviceProfile>
+            <StateActions
+                start="0008"
+                stop="0010"
+                selectCC="0020"
+                selectCV="0040"
+                followZero="0600"
+                ignoreZero="0800" />
+        </ChannelPattern>
+    </DeviceProfile>
+
+    <DeviceProfile id="pic16_usb" name="PIC-16 USB">
+        <Device>
+            <Variant>PIC-16</Variant>
+            <ChannelCount>16</ChannelCount>
+            <SupportsZeroChannel>true</SupportsZeroChannel>
+        </Device>
+
+        <Transport>
+            <Type>USB</Type>
+            <BaudRate>115200</BaudRate>
+            <DataBits>8</DataBits>
+            <StopBits>1</StopBits>
+            <Parity>none</Parity>
+            <FlowControl>none</FlowControl>
+            <CommandTerminator>\r</CommandTerminator>
+        </Transport>
+
+        <Protocol>
+            <Mode>text-plain</Mode>
+            <SetPrefix>P</SetPrefix>
+            <GetPrefix>J</GetPrefix>
+            <ResponsePrefix>K</ResponsePrefix>
+            <ErrorPrefix>E</ErrorPrefix>
+        </Protocol>
+
+        <GlobalParameters>
+            <Parameter key="serialNumber" code="0701" access="read" />
+            <Parameter key="firmwareVersion" code="0710" access="read" />
+            <Parameter key="lockStatus" code="0800" access="read" />
+            <Parameter key="overcurrentStatus" code="0801" access="read" />
+            <Parameter key="overvoltageStatus" code="0802" access="read" />
+        </GlobalParameters>
+
+        <ZeroChannel>
+            <State code="0001" access="write" />
+            <Actions
+                save="0002"
+                clear="0004"
+                start="0008"
+                stop="0010"
+                selectCC="0020"
+                selectCV="0040" />
+        </ZeroChannel>
+
+        <ChannelPattern>
+            <StateBase code="0011" step="0010" />
+
+            <CurrentBases
+                value="0012"
+                maximum="0013"
+                maximumLimit="0014"
+                measured="0015"
+                protection="0016"
+                step="0010"
+                scale="0.1"
+                unit="mA" />
+
+            <VoltageBases
+                value="0017"
+                maximum="0018"
+                maximumLimit="0019"
+                measured="001A"
+                protection="001B"
+                step="0010"
+                scale="0.01"
+                unit="V" />
+
+            <StateActions
+                start="0008"
+                stop="0010"
+                selectCC="0020"
+                selectCV="0040"
+                followZero="0600"
+                ignoreZero="0800" />
+        </ChannelPattern>
+    </DeviceProfile>
+</DeviceProfiles>

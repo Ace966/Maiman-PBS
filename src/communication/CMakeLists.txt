@@ -1,6 +1,10 @@
-# An interface target carries dependencies until transport sources are approved.
-add_library(maiman_pbs_comm INTERFACE)
+add_library(maiman_pbs_comm STATIC
+    IDataSource.h
+    serialdatasource.h
+    serialdatasource.cpp
+)
 add_library(MaimanPBS::Communication ALIAS maiman_pbs_comm)
 
-target_compile_features(maiman_pbs_comm INTERFACE cxx_std_17)
-target_link_libraries(maiman_pbs_comm INTERFACE Qt6::Core Qt6::SerialPort)
+target_compile_features(maiman_pbs_comm PUBLIC cxx_std_17)
+target_include_directories(maiman_pbs_comm PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(maiman_pbs_comm PUBLIC Qt6::Core Qt6::SerialPort)

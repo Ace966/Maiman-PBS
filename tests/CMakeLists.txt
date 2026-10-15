@@ -18,7 +18,12 @@ add_test(NAME serial_data_source
     COMMAND SerialDataSourceTests -o -,txt
         -o "${CMAKE_CURRENT_BINARY_DIR}/serial-data-source.txt,txt"
 )
-set_tests_properties(communication_foundation serial_data_source PROPERTIES TIMEOUT 15)
+add_executable(DataThreadTests tst_datathread.cpp)
+set_target_properties(DataThreadTests PROPERTIES AUTOMOC ON)
+target_link_libraries(DataThreadTests PRIVATE MaimanPBS::Communication Qt6::Test)
+add_test(NAME data_thread COMMAND DataThreadTests -o -,txt
+    -o "${CMAKE_CURRENT_BINARY_DIR}/data-thread.txt,txt")
+set_tests_properties(communication_foundation serial_data_source data_thread PROPERTIES TIMEOUT 15)
 
 # Make CTest find Qt and compiler runtime DLLs without a deployment step.
 if(WIN32)
@@ -29,7 +34,7 @@ if(WIN32)
         get_filename_component(compiler_bin "${CMAKE_CXX_COMPILER}" DIRECTORY)
         list(APPEND runtime_environment "PATH=path_list_prepend:${compiler_bin}")
     endif()
-    set_tests_properties(communication_foundation serial_data_source PROPERTIES
+    set_tests_properties(communication_foundation serial_data_source data_thread PROPERTIES
         ENVIRONMENT_MODIFICATION "${runtime_environment}"
     )
 endif()

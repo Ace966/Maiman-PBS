@@ -63,7 +63,59 @@ QIODevice* SerialDataSource::createAndConnect() {
 }
 
 QString SerialDataSource::errorString() const {
+    if (m_device && m_device->error() != QSerialPort::NoError
+        && m_device->error() != QSerialPort::TimeoutError) {
+        return QStringLiteral("%1 (Qt serial error %2).")
+            .arg(m_device->errorString()).arg(int(m_device->error()));
+    }
+    if (!m_errorString.isEmpty()) return m_errorString;
+    if (m_device && !m_device->isOpen()) return QStringLiteral("Serial port is closed.");
     return m_errorString;
+}
+
+bool SerialDataSource::requireOpen() {
+    if (m_device && m_device->isOpen()) return true;
+    m_errorString = QStringLiteral("Serial port is not open.");
+    return false;
+}
+
+void SerialDataSource::close() {
+    if (m_device && m_device->isOpen()) m_device->close();
+}
+
+qint64 SerialDataSource::write(const QByteArray& data) {
+    if (!requireOpen()) return -1;
+    const qint64 count = m_device->write(data);
+    if (count < 0) m_errorString = m_device->errorString();
+    return count;
+}
+
+qint64 SerialDataSource::read(char* data, qint64 maximum) {
+    if (!requireOpen()) return -1;
+    const qint64 count = m_device->read(data, maximum);
+    if (count < 0) m_errorString = m_device->errorString();
+    return count;
+}
+
+qint64 SerialDataSource::bytesAvailable() const {
+    return m_device ? m_device->bytesAvailable() : 0;
+}
+
+qint64 SerialDataSource::bytesToWrite() const {
+    return m_device ? m_device->bytesToWrite() : 0;
+}
+
+bool SerialDataSource::waitForReadyRead(int milliseconds) {
+    return requireOpen() && m_device->waitForReadyRead(milliseconds);
+}
+
+bool SerialDataSource::waitForBytesWritten(int milliseconds) {
+    return requireOpen() && m_device->waitForBytesWritten(milliseconds);
+}
+
+bool SerialDataSource::hasError() const {
+    return !m_device || !m_device->isOpen()
+        || (m_device->error() != QSerialPort::NoError && m_device->error() != QSerialPort::TimeoutError);
 }
 
 std::unique_ptr<QSerialPort> SerialDataSource::createSerialPort() {

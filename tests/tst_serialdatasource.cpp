@@ -1,11 +1,13 @@
 #include "IDataSource.h"
 #include "serialdatasource.h"
+#include "DataThread.h"
 
 #include <QThread>
 #include <QtTest>
 #include <limits>
 #include <memory>
 #include <type_traits>
+#include <cstring>
 
 static_assert(std::is_abstract_v<IDataSource>);
 static_assert(std::has_virtual_destructor_v<IDataSource>);
@@ -30,18 +32,28 @@ struct PortState {
     bool nullFactory{false};
     QString openedName;
     qint32 openedBaud{0};
+    QByteArray incoming, outgoing;
+    int readCalls{0}, writeCalls{0}, readWaits{0}, writeWaits{0};
+    int lastReadWait{-1}, lastWriteWait{-1};
+    bool ioMode{false}, failRead{false}, failWrite{false};
+    qint64 pending{0};
+    QThread* creationThread{nullptr};
+    int affinityErrors{0};
 };
 
 class FakeSerialPort : public QSerialPort {
 public:
     explicit FakeSerialPort(PortState& state) : m_state(state) {
+        m_state.creationThread = QThread::currentThread();
         ++m_state.constructed;
     }
     ~FakeSerialPort() override {
+        checkThread();
         if (isOpen()) close();
         ++m_state.destroyed;
     }
     bool open(OpenMode mode) override {
+        checkThread();
         ++m_state.openCalls;
         m_state.openedName = portName();
         m_state.openedBaud = baudRate();
@@ -50,9 +62,10 @@ public:
             return false;
         }
         // Only QIODevice's in-memory state changes; no serial backend is opened.
-        return QIODevice::open(mode);
+        return QIODevice::open(m_state.ioMode ? mode | QIODevice::Unbuffered : mode);
     }
     void close() override {
+        checkThread();
         ++m_state.closeCalls;
         QIODevice::close();
     }
@@ -60,7 +73,43 @@ public:
         setErrorString(QStringLiteral("injected baud failure"));
     }
 
+    qint64 bytesAvailable() const override { checkThread(); return m_state.incoming.size() + QIODevice::bytesAvailable(); }
+    qint64 bytesToWrite() const override { checkThread(); return m_state.pending; }
+    bool waitForReadyRead(int milliseconds) override {
+        checkThread();
+        ++m_state.readWaits; m_state.lastReadWait = milliseconds;
+        return !m_state.incoming.isEmpty();
+    }
+    bool waitForBytesWritten(int milliseconds) override {
+        checkThread();
+        ++m_state.writeWaits; m_state.lastWriteWait = milliseconds;
+        const bool progressed = m_state.pending > 0;
+        m_state.pending = 0;
+        return progressed;
+    }
+
+protected:
+    qint64 readData(char* data, qint64 maximum) override {
+        checkThread();
+        ++m_state.readCalls;
+        if (m_state.failRead) { setErrorString(QStringLiteral("injected read failure")); return -1; }
+        const qint64 count = qMin<qint64>(maximum, m_state.incoming.size());
+        std::memcpy(data, m_state.incoming.constData(), size_t(count));
+        m_state.incoming.remove(0, count);
+        return count;
+    }
+    qint64 writeData(const char* data, qint64 count) override {
+        checkThread();
+        ++m_state.writeCalls;
+        if (m_state.failWrite) { setErrorString(QStringLiteral("injected write failure")); return -1; }
+        m_state.outgoing.append(data, count);
+        return count;
+    }
+
 private:
+    void checkThread() const {
+        if (thread() != QThread::currentThread()) ++m_state.affinityErrors;
+    }
     PortState& m_state;
 };
 
@@ -116,10 +165,16 @@ private slots:
     void failedOpenCleansUpAndCanRetry();
     void nullFactoryResultIsReported();
     void createsDeviceInCallingThread();
+    void operationsWithoutDeviceAreSafe();
+    void delegatedReadWriteAndWaits();
+    void delegatedFailures();
+    void closeDoesNotTakeOwnership();
+    void backendErrorIsReported();
+    void workerUsesOperationalSerialSource();
 };
 
 void SerialDataSourceTests::polymorphicDestruction() {
-    struct DestructionProbe : IDataSource {
+    struct DestructionProbe : SerialDataSource {
         explicit DestructionProbe(bool& destroyed) : flag(destroyed) {}
         ~DestructionProbe() override { flag = true; }
         void init(const QVariantMap&) override {}
@@ -468,6 +523,101 @@ void SerialDataSourceTests::createsDeviceInCallingThread() {
     worker->wait();
     QVERIFY(opened);
     QVERIFY(correctThread);
+    QCOMPARE(state.constructed, 1);
+    QCOMPARE(state.destroyed, 1);
+    QCOMPARE(state.closeCalls, 1);
+}
+
+void SerialDataSourceTests::operationsWithoutDeviceAreSafe() {
+    SerialDataSource source;
+    source.init(settings());
+    char byte;
+    QCOMPARE(source.read(&byte, 1), qint64(-1));
+    QCOMPARE(source.write("x"), qint64(-1));
+    QVERIFY(!source.waitForReadyRead(1)); QVERIFY(!source.waitForBytesWritten(1));
+    QCOMPARE(source.bytesAvailable(), qint64(0)); QCOMPARE(source.bytesToWrite(), qint64(0));
+    QVERIFY(source.hasError()); QVERIFY(source.errorString().contains(QStringLiteral("not open")));
+    source.close();
+}
+
+void SerialDataSourceTests::delegatedReadWriteAndWaits() {
+    PortState state; state.ioMode = true; state.incoming = QByteArray("a\r\0b", 4);
+    FakeSerialDataSource source(state); source.init(settings());
+    std::unique_ptr<QIODevice> device(source.createAndConnect()); QVERIFY(device);
+    IDataSource& port = source;
+    QVERIFY(!port.hasError());
+    QCOMPARE(port.bytesAvailable(), qint64(4)); QVERIFY(port.waitForReadyRead(7));
+    char bytes[8]; const auto count = port.read(bytes, sizeof(bytes));
+    QCOMPARE(QByteArray(bytes, count), QByteArray("a\r\0b", 4));
+    QCOMPARE(state.readCalls, 1); QCOMPARE(state.lastReadWait, 7);
+    QVERIFY(!port.waitForReadyRead(2)); QVERIFY(!port.hasError());
+    QCOMPARE(port.write(QByteArray("x\0y", 3)), qint64(3));
+    QCOMPARE(state.outgoing, QByteArray("x\0y", 3)); QCOMPARE(state.writeCalls, 1);
+    state.pending = 3; QCOMPARE(port.bytesToWrite(), qint64(3));
+    QVERIFY(port.waitForBytesWritten(9)); QCOMPARE(state.lastWriteWait, 9);
+    QCOMPARE(port.bytesToWrite(), qint64(0)); QVERIFY(port.errorString().isEmpty());
+}
+
+void SerialDataSourceTests::delegatedFailures() {
+    PortState state; state.ioMode = true; state.incoming = "x";
+    FakeSerialDataSource source(state); source.init(settings());
+    std::unique_ptr<QIODevice> device(source.createAndConnect()); QVERIFY(device);
+    state.failRead = true; char byte;
+    QCOMPARE(source.read(&byte, 1), qint64(-1));
+    QVERIFY(source.errorString().contains(QStringLiteral("injected read failure")));
+    state.failWrite = true;
+    QCOMPARE(source.write("x"), qint64(-1));
+    QVERIFY(source.errorString().contains(QStringLiteral("injected write failure")));
+}
+
+void SerialDataSourceTests::closeDoesNotTakeOwnership() {
+    PortState state;
+    FakeSerialDataSource source(state); source.init(settings());
+    std::unique_ptr<QIODevice> device(source.createAndConnect()); QVERIFY(device);
+    source.close(); source.close();
+    QCOMPARE(state.closeCalls, 1); QCOMPARE(state.destroyed, 0);
+    QVERIFY(source.hasError());
+    QVERIFY(source.createAndConnect() == nullptr);
+    device.reset(); QCOMPARE(state.destroyed, 1);
+    device.reset(source.createAndConnect()); QVERIFY(device);
+    QVERIFY(!source.hasError());
+}
+
+void SerialDataSourceTests::backendErrorIsReported() {
+    PortState state;
+    FakeSerialDataSource source(state); source.init(settings());
+    std::unique_ptr<QIODevice> device(source.createAndConnect()); QVERIFY(device);
+    source.close();
+    auto* port = qobject_cast<QSerialPort*>(device.get());
+    QVERIFY(!port->clear()); // Closed-object guard sets NotOpenError; no backend open.
+    QVERIFY(port->error() != QSerialPort::NoError);
+    QVERIFY(source.hasError());
+    QVERIFY(source.errorString().contains(QStringLiteral("Qt serial error")));
+    QVERIFY(source.errorString().contains(QString::number(int(port->error()))));
+}
+
+void SerialDataSourceTests::workerUsesOperationalSerialSource() {
+    PortState state;
+    state.ioMode = true;
+    state.incoming = QByteArray("raw\r\0input", 10);
+    DataThread worker;
+    QSignalSpy reads(&worker, &DataThread::readyRead);
+    QSignalSpy results(&worker, &DataThread::writeFinished);
+    QSignalSpy errors(&worker, &DataThread::errorOccured);
+    QScopedPointer<IDataSource> source(new FakeSerialDataSource(state));
+    source->init(settings());
+    QVERIFY(worker.configure(source));
+    QVERIFY(worker.write(QByteArray("out\0put", 7)));
+    QTRY_COMPARE_WITH_TIMEOUT(results.size(), 1, 2000);
+    QTRY_COMPARE_WITH_TIMEOUT(reads.size(), 1, 2000);
+    worker.stop();
+    QVERIFY(worker.wait(2000));
+    QVERIFY(results.at(0).at(1).toBool());
+    QCOMPARE(reads.at(0).at(0).toByteArray(), QByteArray("raw\r\0input", 10));
+    QCOMPARE(state.outgoing, QByteArray("out\0put", 7));
+    QCOMPARE(errors.size(), 0);
+    QCOMPARE(state.creationThread, &worker);
+    QCOMPARE(state.affinityErrors, 0);
     QCOMPARE(state.constructed, 1);
     QCOMPARE(state.destroyed, 1);
     QCOMPARE(state.closeCalls, 1);

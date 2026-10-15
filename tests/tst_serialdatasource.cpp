@@ -103,6 +103,8 @@ private slots:
     void uninitializedSourceDoesNotAllocate();
     void validConfiguration_data();
     void validConfiguration();
+    void portNameIsPassedVerbatim_data();
+    void portNameIsPassedVerbatim();
     void invalidConfiguration_data();
     void invalidConfiguration();
     void reinitializationReplacesAndInvalidatesSettings();
@@ -171,9 +173,6 @@ void SerialDataSourceTests::validConfiguration_data() {
     QTest::addColumn<QVariant>("baud");
     QTest::addColumn<qint32>("expected");
     QTest::newRow("integer") << QVariant(115200) << qint32(115200);
-    QTest::newRow("numeric-string") << QVariant(QStringLiteral("9600")) << qint32(9600);
-    QTest::newRow("unsigned") << QVariant(uint(57600)) << qint32(57600);
-    QTest::newRow("integral-double") << QVariant(19200.0) << qint32(19200);
     QTest::newRow("minimum-positive") << QVariant(1) << qint32(1);
     QTest::newRow("maximum-qint32") << QVariant(std::numeric_limits<qint32>::max())
                                     << std::numeric_limits<qint32>::max();
@@ -184,7 +183,7 @@ void SerialDataSourceTests::validConfiguration() {
     QFETCH(qint32, expected);
     PortState state;
     FakeSerialDataSource source(state);
-    source.init(settings(QStringLiteral("  PBS_FAKE_A  "), baud));
+    source.init(settings(QStringLiteral("PBS_FAKE_A"), baud));
     QVERIFY(source.errorString().isEmpty());
     std::unique_ptr<QIODevice> device(source.createAndConnect());
     QVERIFY(device);
@@ -204,6 +203,27 @@ void SerialDataSourceTests::validConfiguration() {
     QCOMPARE(state.closeCalls, 1);
 }
 
+void SerialDataSourceTests::portNameIsPassedVerbatim_data() {
+    QTest::addColumn<QString>("name");
+    QTest::newRow("padded-name") << QStringLiteral("  PBS_FAKE_A  ");
+    QTest::newRow("newline-name") << QStringLiteral("PBS\nFAKE");
+    QTest::newRow("del-name") << (QStringLiteral("PBS") + QChar(0x7f) + QStringLiteral("FAKE"));
+}
+
+void SerialDataSourceTests::portNameIsPassedVerbatim() {
+    QFETCH(QString, name);
+    PortState state;
+    FakeSerialDataSource source(state);
+    source.init(settings(name));
+    std::unique_ptr<QIODevice> device(source.createAndConnect());
+    QVERIFY(device);
+    // Fake open records the literal identifier, not platform name validity.
+    QCOMPARE(state.openedName, name);
+    device.reset();
+    QCOMPARE(state.constructed, state.destroyed);
+    QCOMPARE(state.closeCalls, 1);
+}
+
 void SerialDataSourceTests::invalidConfiguration_data() {
     QTest::addColumn<QVariantMap>("configuration");
     QTest::addColumn<QString>("errorField");
@@ -214,12 +234,20 @@ void SerialDataSourceTests::invalidConfiguration_data() {
     QTest::newRow("blank-port") << settings(QStringLiteral("   ")) << portError;
     QTest::newRow("non-string-port") << QVariantMap{{QStringLiteral("comport"), 42},
                                                     {QStringLiteral("baudrate"), 115200}} << portError;
-    QTest::newRow("newline-port") << settings(QStringLiteral("PBS\nFAKE")) << portError;
+    QTest::newRow("blank-tab-port") << settings(QStringLiteral("\t \r\n")) << portError;
     QTest::newRow("nul-port") << settings(QString(QChar(0))) << portError;
+    QTest::newRow("embedded-nul-port")
+        << settings(QStringLiteral("PBS_FAKE_A") + QChar(0) + QStringLiteral("suffix")) << portError;
     QTest::newRow("missing-baud") << QVariantMap{{QStringLiteral("comport"), QStringLiteral("PBS_FAKE_A")}} << baudError;
     QTest::newRow("zero-baud") << settings(QStringLiteral("PBS_FAKE_A"), 0) << baudError;
     QTest::newRow("negative-baud") << settings(QStringLiteral("PBS_FAKE_A"), -1) << baudError;
     QTest::newRow("bad-text-baud") << settings(QStringLiteral("PBS_FAKE_A"), QStringLiteral("fast")) << baudError;
+    QTest::newRow("numeric-string-baud") << settings(QStringLiteral("PBS_FAKE_A"), QStringLiteral("9600")) << baudError;
+    QTest::newRow("unsigned-baud") << settings(QStringLiteral("PBS_FAKE_A"), uint(57600)) << baudError;
+    QTest::newRow("wide-integer-baud") << settings(QStringLiteral("PBS_FAKE_A"), qlonglong(9600)) << baudError;
+    QTest::newRow("wide-unsigned-baud") << settings(QStringLiteral("PBS_FAKE_A"), qulonglong(9600)) << baudError;
+    QTest::newRow("integral-double-baud") << settings(QStringLiteral("PBS_FAKE_A"), 19200.0) << baudError;
+    QTest::newRow("integral-float-baud") << settings(QStringLiteral("PBS_FAKE_A"), 19200.0f) << baudError;
     QTest::newRow("bool-baud") << settings(QStringLiteral("PBS_FAKE_A"), true) << baudError;
     QTest::newRow("fractional-baud") << settings(QStringLiteral("PBS_FAKE_A"), 9600.5) << baudError;
     QTest::newRow("nan-baud") << settings(QStringLiteral("PBS_FAKE_A"), std::numeric_limits<double>::quiet_NaN()) << baudError;
@@ -251,7 +279,7 @@ void SerialDataSourceTests::reinitializationReplacesAndInvalidatesSettings() {
     source.init({{QStringLiteral("comport"), QStringLiteral("PBS_INVALID")}});
     QVERIFY(source.createAndConnect() == nullptr);
     QCOMPARE(state.factoryCalls, 0);
-    source.init(settings(QStringLiteral("PBS_FAKE_B"), QStringLiteral("9600")));
+    source.init(settings(QStringLiteral("PBS_FAKE_B"), 9600));
     std::unique_ptr<QIODevice> device(source.createAndConnect());
     QVERIFY(device);
     QCOMPARE(state.openedName, QStringLiteral("PBS_FAKE_B"));

@@ -6,6 +6,8 @@ add_library(maiman_pbs_comm STATIC
     DataThread.cpp
     PICTextProtocol.h
     PICTextProtocol.cpp
+    PICTextReceiver.h
+    PICTextReceiver.cpp
 )
 set_target_properties(maiman_pbs_comm PROPERTIES AUTOMOC ON)
 add_library(MaimanPBS::Communication ALIAS maiman_pbs_comm)

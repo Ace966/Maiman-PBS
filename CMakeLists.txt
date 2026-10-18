@@ -9,6 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(Qt6 6.9.3 REQUIRED COMPONENTS Core SerialPort)
 
 add_subdirectory(src/communication)
+add_subdirectory(src/model)
 
 include(CTest)
 if(BUILD_TESTING)

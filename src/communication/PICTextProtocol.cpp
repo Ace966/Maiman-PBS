@@ -44,4 +44,32 @@ Response decode(const QByteArray& frame) {
     return result;
 }
 
+FrameAssembler::Result FrameAssembler::append(const QByteArray& bytes) {
+    Result result;
+    for (char byte : bytes) {
+        if (m_discarding) {
+            if (byte == '\r') m_discarding = false;
+            continue;
+        }
+        // A CR in position 11 is valid; any twelfth byte makes the frame oversized.
+        if (m_pending.size() == MaximumFrameBytes) {
+            m_pending.clear();
+            m_discarding = byte != '\r';
+            ++result.discardedFrames;
+            continue;
+        }
+        m_pending.append(byte);
+        if (byte == '\r') {
+            result.frames.append(m_pending);
+            m_pending.clear();
+        }
+    }
+    return result;
+}
+
+void FrameAssembler::reset() {
+    m_pending.clear();
+    m_discarding = false;
+}
+
 } // namespace PICTextProtocol

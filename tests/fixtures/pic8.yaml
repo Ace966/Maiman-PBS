@@ -1,0 +1,29 @@
+# One PIC-8 definition
+device:
+  model: PIC-8
+parameters:
+  - id: "0017"
+    name: "Channel 1 voltage setting"
+    channel: 1
+    unit: V
+    scale: 0.01
+    access: rw
+  - id: "001A"
+    name: "Channel 1 measured voltage"
+    channel: 1
+    unit: V
+    scale: 0.01
+    access: r
+  - id: "0021"
+    name: "Channel 2 state"
+    channel: 2
+    access: rw
+  - id: "0001"
+    name: "Virtual channel zero state command"
+    channel: 0
+    access: w
+  - id: "0408"
+    name: "Measured input voltage"
+    unit: V
+    scale: 0.1
+    access: r

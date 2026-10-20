@@ -1,0 +1,16 @@
+# One PIC-16 definition. USB ASCII register identifiers only.
+device:
+  model: PIC-16
+parameters:
+  - id: "010A"
+    name: "Channel 16 measured voltage"
+    channel: 16
+    unit: V
+    scale: 0.01
+    access: r
+  - id: "0017"
+    name: "Channel 1 voltage setting"
+    channel: 1
+    unit: V
+    scale: 0.01
+    access: rw

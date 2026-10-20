@@ -1,0 +1,1065 @@
+models:
+  "1700":
+    model: PIC-8
+    parameters: []
+  "1701":
+    model: PIC-16
+    parameters:
+      - id: "0092"
+        name: "Channel 9 current setting"
+        access: "rw"
+        channel: 9
+        unit: "mA"
+        scale: 0.1
+      - id: "0093"
+        name: "Channel 9 current maximum setting"
+        access: "rw"
+        channel: 9
+        unit: "mA"
+        scale: 0.1
+      - id: "0094"
+        name: "Channel 9 current maximum limit"
+        access: "r"
+        channel: 9
+        unit: "mA"
+        scale: 0.1
+      - id: "0095"
+        name: "Channel 9 measured current"
+        access: "r"
+        channel: 9
+        unit: "mA"
+        scale: 0.1
+      - id: "0096"
+        name: "Channel 9 current protection value"
+        access: "rw"
+        channel: 9
+        unit: "mA"
+        scale: 0.1
+      - id: "0097"
+        name: "Channel 9 voltage setting"
+        access: "rw"
+        channel: 9
+        unit: "V"
+        scale: 0.01
+      - id: "0098"
+        name: "Channel 9 voltage maximum setting"
+        access: "rw"
+        channel: 9
+        unit: "V"
+        scale: 0.01
+      - id: "0099"
+        name: "Channel 9 voltage maximum limit"
+        access: "r"
+        channel: 9
+        unit: "V"
+        scale: 0.01
+      - id: "009A"
+        name: "Channel 9 measured voltage"
+        access: "r"
+        channel: 9
+        unit: "V"
+        scale: 0.01
+      - id: "009B"
+        name: "Channel 9 voltage protection value"
+        access: "rw"
+        channel: 9
+        unit: "V"
+        scale: 0.01
+      - id: "0091"
+        name: "Channel 9 state"
+        access: "rw"
+        channel: 9
+
+      - id: "00A2"
+        name: "Channel 10 current setting"
+        access: "rw"
+        channel: 10
+        unit: "mA"
+        scale: 0.1
+      - id: "00A3"
+        name: "Channel 10 current maximum setting"
+        access: "rw"
+        channel: 10
+        unit: "mA"
+        scale: 0.1
+      - id: "00A4"
+        name: "Channel 10 current maximum limit"
+        access: "r"
+        channel: 10
+        unit: "mA"
+        scale: 0.1
+
+      - id: "00A5"
+        name: "Channel 10 measured current"
+        access: "r"
+        channel: 10
+        unit: "mA"
+        scale: 0.1
+      - id: "00A6"
+        name: "Channel 10 current protection value"
+        access: "rw"
+        channel: 10
+        unit: "mA"
+        scale: 0.1
+      - id: "00A7"
+        name: "Channel 10 voltage setting"
+        access: "rw"
+        channel: 10
+        unit: "V"
+        scale: 0.01
+      - id: "00A8"
+        name: "Channel 10 voltage maximum setting"
+        access: "rw"
+        channel: 10
+        unit: "V"
+        scale: 0.01
+      - id: "00A9"
+        name: "Channel 10 voltage maximum limit"
+        access: "r"
+        channel: 10
+        unit: "V"
+        scale: 0.01
+      - id: "00AA"
+        name: "Channel 10 measured voltage"
+        access: "r"
+        channel: 10
+        unit: "V"
+        scale: 0.01
+      - id: "00AB"
+        name: "Channel 10 voltage protection value"
+        access: "rw"
+        channel: 10
+        unit: "V"
+        scale: 0.01
+      - id: "00A1"
+        name: "Channel 10 state"
+        access: "rw"
+        channel: 10
+      - id: "00B2"
+        name: "Channel 11 current setting"
+        access: "rw"
+        channel: 11
+        unit: "mA"
+        scale: 0.1
+      - id: "00B3"
+        name: "Channel 11 current maximum setting"
+        access: "rw"
+        channel: 11
+        unit: "mA"
+        scale: 0.1
+      - id: "00B4"
+        name: "Channel 11 current maximum limit"
+        access: "r"
+        channel: 11
+        unit: "mA"
+        scale: 0.1
+      - id: "00B5"
+        name: "Channel 11 measured current"
+        access: "r"
+        channel: 11
+        unit: "mA"
+        scale: 0.1
+      - id: "00B6"
+        name: "Channel 11 current protection value"
+        access: "rw"
+        channel: 11
+        unit: "mA"
+        scale: 0.1
+      - id: "00B7"
+        name: "Channel 11 voltage setting"
+        access: "rw"
+        channel: 11
+        unit: "V"
+        scale: 0.01
+      - id: "00B8"
+        name: "Channel 11 voltage maximum setting"
+        access: "rw"
+        channel: 11
+        unit: "V"
+        scale: 0.01
+      - id: "00B9"
+        name: "Channel 11 voltage maximum limit"
+        access: "r"
+        channel: 11
+        unit: "V"
+        scale: 0.01
+      - id: "00BA"
+        name: "Channel 11 measured voltage"
+        access: "r"
+        channel: 11
+        unit: "V"
+        scale: 0.01
+      - id: "00BB"
+        name: "Channel 11 voltage protection value"
+        access: "rw"
+        channel: 11
+        unit: "V"
+        scale: 0.01
+      - id: "00B1"
+        name: "Channel 11 state"
+        access: "rw"
+        channel: 11
+      - id: "00C2"
+        name: "Channel 12 current setting"
+        access: "rw"
+        channel: 12
+        unit: "mA"
+        scale: 0.1
+      - id: "00C3"
+        name: "Channel 12 current maximum setting"
+        access: "rw"
+        channel: 12
+        unit: "mA"
+        scale: 0.1
+      - id: "00C4"
+        name: "Channel 12 current maximum limit"
+        access: "r"
+        channel: 12
+        unit: "mA"
+        scale: 0.1
+      - id: "00C5"
+        name: "Channel 12 measured current"
+        access: "r"
+        channel: 12
+        unit: "mA"
+        scale: 0.1
+      - id: "00C6"
+        name: "Channel 12 current protection value"
+        access: "rw"
+        channel: 12
+        unit: "mA"
+        scale: 0.1
+      - id: "00C7"
+        name: "Channel 12 voltage setting"
+        access: "rw"
+        channel: 12
+        unit: "V"
+        scale: 0.01
+      - id: "00C8"
+        name: "Channel 12 voltage maximum setting"
+        access: "rw"
+        channel: 12
+        unit: "V"
+        scale: 0.01
+      - id: "00C9"
+        name: "Channel 12 voltage maximum limit"
+        access: "r"
+        channel: 12
+        unit: "V"
+        scale: 0.01
+      - id: "00CA"
+        name: "Channel 12 measured voltage"
+        access: "r"
+        channel: 12
+        unit: "V"
+        scale: 0.01
+      - id: "00CB"
+        name: "Channel 12 voltage protection value"
+        access: "rw"
+        channel: 12
+        unit: "V"
+        scale: 0.01
+      - id: "00C1"
+        name: "Channel 12 state"
+        access: "rw"
+        channel: 12
+      - id: "00D2"
+        name: "Channel 13 current setting"
+        access: "rw"
+        channel: 13
+        unit: "mA"
+        scale: 0.1
+      - id: "00D3"
+        name: "Channel 13 current maximum setting"
+        access: "rw"
+        channel: 13
+        unit: "mA"
+        scale: 0.1
+      - id: "00D4"
+        name: "Channel 13 current maximum limit"
+        access: "r"
+        channel: 13
+        unit: "mA"
+        scale: 0.1
+      - id: "00D5"
+        name: "Channel 13 measured current"
+        access: "r"
+        channel: 13
+        unit: "mA"
+        scale: 0.1
+      - id: "00D6"
+        name: "Channel 13 current protection value"
+        access: "rw"
+        channel: 13
+        unit: "mA"
+        scale: 0.1
+      - id: "00D7"
+        name: "Channel 13 voltage setting"
+        access: "rw"
+        channel: 13
+        unit: "V"
+        scale: 0.01
+      - id: "00D8"
+        name: "Channel 13 voltage maximum setting"
+        access: "rw"
+        channel: 13
+        unit: "V"
+        scale: 0.01
+      - id: "00D9"
+        name: "Channel 13 voltage maximum limit"
+        access: "r"
+        channel: 13
+        unit: "V"
+        scale: 0.01
+      - id: "00DA"
+        name: "Channel 13 measured voltage"
+        access: "r"
+        channel: 13
+        unit: "V"
+        scale: 0.01
+      - id: "00DB"
+        name: "Channel 13 voltage protection value"
+        access: "rw"
+        channel: 13
+        unit: "V"
+        scale: 0.01
+      - id: "00D1"
+        name: "Channel 13 state"
+        access: "rw"
+        channel: 13
+      - id: "00E2"
+        name: "Channel 14 current setting"
+        access: "rw"
+        channel: 14
+        unit: "mA"
+        scale: 0.1
+      - id: "00E3"
+        name: "Channel 14 current maximum setting"
+        access: "rw"
+        channel: 14
+        unit: "mA"
+        scale: 0.1
+      - id: "00E4"
+        name: "Channel 14 current maximum limit"
+        access: "r"
+        channel: 14
+        unit: "mA"
+        scale: 0.1
+      - id: "00E5"
+        name: "Channel 14 measured current"
+        access: "r"
+        channel: 14
+        unit: "mA"
+        scale: 0.1
+      - id: "00E6"
+        name: "Channel 14 current protection value"
+        access: "rw"
+        channel: 14
+        unit: "mA"
+        scale: 0.1
+      - id: "00E7"
+        name: "Channel 14 voltage setting"
+        access: "rw"
+        channel: 14
+        unit: "V"
+        scale: 0.01
+      - id: "00E8"
+        name: "Channel 14 voltage maximum setting"
+        access: "rw"
+        channel: 14
+        unit: "V"
+        scale: 0.01
+      - id: "00E9"
+        name: "Channel 14 voltage maximum limit"
+        access: "r"
+        channel: 14
+        unit: "V"
+        scale: 0.01
+      - id: "00EA"
+        name: "Channel 14 measured voltage"
+        access: "r"
+        channel: 14
+        unit: "V"
+        scale: 0.01
+      - id: "00EB"
+        name: "Channel 14 voltage protection value"
+        access: "rw"
+        channel: 14
+        unit: "V"
+        scale: 0.01
+      - id: "00E1"
+        name: "Channel 14 state"
+        access: "rw"
+        channel: 14
+      - id: "00F2"
+        name: "Channel 15 current setting"
+        access: "rw"
+        channel: 15
+        unit: "mA"
+        scale: 0.1
+      - id: "00F3"
+        name: "Channel 15 current maximum setting"
+        access: "rw"
+        channel: 15
+        unit: "mA"
+        scale: 0.1
+      - id: "00F4"
+        name: "Channel 15 current maximum limit"
+        access: "r"
+        channel: 15
+        unit: "mA"
+        scale: 0.1
+      - id: "00F5"
+        name: "Channel 15 measured current"
+        access: "r"
+        channel: 15
+        unit: "mA"
+        scale: 0.1
+      - id: "00F6"
+        name: "Channel 15 current protection value"
+        access: "rw"
+        channel: 15
+        unit: "mA"
+        scale: 0.1
+      - id: "00F7"
+        name: "Channel 15 voltage setting"
+        access: "rw"
+        channel: 15
+        unit: "V"
+        scale: 0.01
+      - id: "00F8"
+        name: "Channel 15 voltage maximum setting"
+        access: "rw"
+        channel: 15
+        unit: "V"
+        scale: 0.01
+      - id: "00F9"
+        name: "Channel 15 voltage maximum limit"
+        access: "r"
+        channel: 15
+        unit: "V"
+        scale: 0.01
+      - id: "00FA"
+        name: "Channel 15 measured voltage"
+        access: "r"
+        channel: 15
+        unit: "V"
+        scale: 0.01
+      - id: "00FB"
+        name: "Channel 15 voltage protection value"
+        access: "rw"
+        channel: 15
+        unit: "V"
+        scale: 0.01
+      - id: "00F1"
+        name: "Channel 15 state"
+        access: "rw"
+        channel: 15
+      - id: "0102"
+        name: "Channel 16 current setting"
+        access: "rw"
+        channel: 16
+        unit: "mA"
+        scale: 0.1
+      - id: "0103"
+        name: "Channel 16 current maximum setting"
+        access: "rw"
+        channel: 16
+        unit: "mA"
+        scale: 0.1
+      - id: "0104"
+        name: "Channel 16 current maximum limit"
+        access: "r"
+        channel: 16
+        unit: "mA"
+        scale: 0.1
+      - id: "0105"
+        name: "Channel 16 measured current"
+        access: "r"
+        channel: 16
+        unit: "mA"
+        scale: 0.1
+      - id: "0106"
+        name: "Channel 16 current protection value"
+        access: "rw"
+        channel: 16
+        unit: "mA"
+        scale: 0.1
+      - id: "0107"
+        name: "Channel 16 voltage setting"
+        access: "rw"
+        channel: 16
+        unit: "V"
+        scale: 0.01
+      - id: "0108"
+        name: "Channel 16 voltage maximum setting"
+        access: "rw"
+        channel: 16
+        unit: "V"
+        scale: 0.01
+      - id: "0109"
+        name: "Channel 16 voltage maximum limit"
+        access: "r"
+        channel: 16
+        unit: "V"
+        scale: 0.01
+      - id: "010A"
+        name: "Channel 16 measured voltage"
+        access: "r"
+        channel: 16
+        unit: "V"
+        scale: 0.01
+      - id: "010B"
+        name: "Channel 16 voltage protection value"
+        access: "rw"
+        channel: 16
+        unit: "V"
+        scale: 0.01
+      - id: "0101"
+        name: "Channel 16 state"
+        access: "rw"
+        channel: 16
+common:
+  - id: "0701"
+    name: "Serial number"
+    access: "r"
+  - id: "0710"
+    name: "Firmware version"
+    access: "r"
+  - id: "0720"
+    name: "RS-485 address storage (USB parameter only)"
+    access: "rw"
+  - id: "0800"
+    name: "General lock status bitmask"
+    access: "r"
+  - id: "0801"
+    name: "Overcurrent protection status bitmask"
+    access: "r"
+  - id: "0802"
+    name: "Overvoltage protection status bitmask"
+    access: "r"
+  - id: "0001"
+    name: "Channel zero state and memory commands"
+    access: "rw"
+    channel: 0
+  - id: "0AF4"
+    name: "PCB temperature"
+    access: "r"
+    scale: 0.1
+  - id: "0408"
+    name: "Measured input voltage"
+    access: "r"
+    unit: "V"
+    scale: 0.1
+  - id: "0012"
+    name: "Channel 1 current setting"
+    access: "rw"
+    channel: 1
+    unit: "mA"
+    scale: 0.1
+  - id: "0013"
+    name: "Channel 1 current maximum setting"
+    access: "rw"
+    channel: 1
+    unit: "mA"
+    scale: 0.1
+  - id: "0014"
+    name: "Channel 1 current maximum limit"
+    access: "r"
+    channel: 1
+    unit: "mA"
+    scale: 0.1
+  - id: "0015"
+    name: "Channel 1 measured current"
+    access: "r"
+    channel: 1
+    unit: "mA"
+    scale: 0.1
+  - id: "0016"
+    name: "Channel 1 current protection value"
+    access: "rw"
+    channel: 1
+    unit: "mA"
+    scale: 0.1
+  - id: "0017"
+    name: "Channel 1 voltage setting"
+    access: "rw"
+    channel: 1
+    unit: "V"
+    scale: 0.01
+  - id: "0018"
+    name: "Channel 1 voltage maximum setting"
+    access: "rw"
+    channel: 1
+    unit: "V"
+    scale: 0.01
+  - id: "0019"
+    name: "Channel 1 voltage maximum limit"
+    access: "r"
+    channel: 1
+    unit: "V"
+    scale: 0.01
+  - id: "001A"
+    name: "Channel 1 measured voltage"
+    access: "r"
+    channel: 1
+    unit: "V"
+    scale: 0.01
+  - id: "001B"
+    name: "Channel 1 voltage protection value"
+    access: "rw"
+    channel: 1
+    unit: "V"
+    scale: 0.01
+  - id: "0011"
+    name: "Channel 1 state"
+    access: "rw"
+    channel: 1
+  - id: "0022"
+    name: "Channel 2 current setting"
+    access: "rw"
+    channel: 2
+    unit: "mA"
+    scale: 0.1
+  - id: "0023"
+    name: "Channel 2 current maximum setting"
+    access: "rw"
+    channel: 2
+    unit: "mA"
+    scale: 0.1
+  - id: "0024"
+    name: "Channel 2 current maximum limit"
+    access: "r"
+    channel: 2
+    unit: "mA"
+    scale: 0.1
+  - id: "0025"
+    name: "Channel 2 measured current"
+    access: "r"
+    channel: 2
+    unit: "mA"
+    scale: 0.1
+  - id: "0026"
+    name: "Channel 2 current protection value"
+    access: "rw"
+    channel: 2
+    unit: "mA"
+    scale: 0.1
+  - id: "0027"
+    name: "Channel 2 voltage setting"
+    access: "rw"
+    channel: 2
+    unit: "V"
+    scale: 0.01
+  - id: "0028"
+    name: "Channel 2 voltage maximum setting"
+    access: "rw"
+    channel: 2
+    unit: "V"
+    scale: 0.01
+  - id: "0029"
+    name: "Channel 2 voltage maximum limit"
+    access: "r"
+    channel: 2
+    unit: "V"
+    scale: 0.01
+  - id: "002A"
+    name: "Channel 2 measured voltage"
+    access: "r"
+    channel: 2
+    unit: "V"
+    scale: 0.01
+  - id: "002B"
+    name: "Channel 2 voltage protection value"
+    access: "rw"
+    channel: 2
+    unit: "V"
+    scale: 0.01
+  - id: "0021"
+    name: "Channel 2 state"
+    access: "rw"
+    channel: 2
+  - id: "0032"
+    name: "Channel 3 current setting"
+    access: "rw"
+    channel: 3
+    unit: "mA"
+    scale: 0.1
+  - id: "0033"
+    name: "Channel 3 current maximum setting"
+    access: "rw"
+    channel: 3
+    unit: "mA"
+    scale: 0.1
+  - id: "0034"
+    name: "Channel 3 current maximum limit"
+    access: "r"
+    channel: 3
+    unit: "mA"
+    scale: 0.1
+  - id: "0035"
+    name: "Channel 3 measured current"
+    access: "r"
+    channel: 3
+    unit: "mA"
+    scale: 0.1
+  - id: "0036"
+    name: "Channel 3 current protection value"
+    access: "rw"
+    channel: 3
+    unit: "mA"
+    scale: 0.1
+  - id: "0037"
+    name: "Channel 3 voltage setting"
+    access: "rw"
+    channel: 3
+    unit: "V"
+    scale: 0.01
+  - id: "0038"
+    name: "Channel 3 voltage maximum setting"
+    access: "rw"
+    channel: 3
+    unit: "V"
+    scale: 0.01
+  - id: "0039"
+    name: "Channel 3 voltage maximum limit"
+    access: "r"
+    channel: 3
+    unit: "V"
+    scale: 0.01
+  - id: "003A"
+    name: "Channel 3 measured voltage"
+    access: "r"
+    channel: 3
+    unit: "V"
+    scale: 0.01
+  - id: "003B"
+    name: "Channel 3 voltage protection value"
+    access: "rw"
+    channel: 3
+    unit: "V"
+    scale: 0.01
+  - id: "0031"
+    name: "Channel 3 state"
+    access: "rw"
+    channel: 3
+  - id: "0042"
+    name: "Channel 4 current setting"
+    access: "rw"
+    channel: 4
+    unit: "mA"
+    scale: 0.1
+  - id: "0043"
+    name: "Channel 4 current maximum setting"
+    access: "rw"
+    channel: 4
+    unit: "mA"
+    scale: 0.1
+  - id: "0044"
+    name: "Channel 4 current maximum limit"
+    access: "r"
+    channel: 4
+    unit: "mA"
+    scale: 0.1
+  - id: "0045"
+    name: "Channel 4 measured current"
+    access: "r"
+    channel: 4
+    unit: "mA"
+    scale: 0.1
+  - id: "0046"
+    name: "Channel 4 current protection value"
+    access: "rw"
+    channel: 4
+    unit: "mA"
+    scale: 0.1
+  - id: "0047"
+    name: "Channel 4 voltage setting"
+    access: "rw"
+    channel: 4
+    unit: "V"
+    scale: 0.01
+  - id: "0048"
+    name: "Channel 4 voltage maximum setting"
+    access: "rw"
+    channel: 4
+    unit: "V"
+    scale: 0.01
+  - id: "0049"
+    name: "Channel 4 voltage maximum limit"
+    access: "r"
+    channel: 4
+    unit: "V"
+    scale: 0.01
+  - id: "004A"
+    name: "Channel 4 measured voltage"
+    access: "r"
+    channel: 4
+    unit: "V"
+    scale: 0.01
+  - id: "004B"
+    name: "Channel 4 voltage protection value"
+    access: "rw"
+    channel: 4
+    unit: "V"
+    scale: 0.01
+  - id: "0041"
+    name: "Channel 4 state"
+    access: "rw"
+    channel: 4
+  - id: "0052"
+    name: "Channel 5 current setting"
+    access: "rw"
+    channel: 5
+    unit: "mA"
+    scale: 0.1
+  - id: "0053"
+    name: "Channel 5 current maximum setting"
+    access: "rw"
+    channel: 5
+    unit: "mA"
+    scale: 0.1
+  - id: "0054"
+    name: "Channel 5 current maximum limit"
+    access: "r"
+    channel: 5
+    unit: "mA"
+    scale: 0.1
+  - id: "0055"
+    name: "Channel 5 measured current"
+    access: "r"
+    channel: 5
+    unit: "mA"
+    scale: 0.1
+  - id: "0056"
+    name: "Channel 5 current protection value"
+    access: "rw"
+    channel: 5
+    unit: "mA"
+    scale: 0.1
+  - id: "0057"
+    name: "Channel 5 voltage setting"
+    access: "rw"
+    channel: 5
+    unit: "V"
+    scale: 0.01
+  - id: "0058"
+    name: "Channel 5 voltage maximum setting"
+    access: "rw"
+    channel: 5
+    unit: "V"
+    scale: 0.01
+  - id: "0059"
+    name: "Channel 5 voltage maximum limit"
+    access: "r"
+    channel: 5
+    unit: "V"
+    scale: 0.01
+  - id: "005A"
+    name: "Channel 5 measured voltage"
+    access: "r"
+    channel: 5
+    unit: "V"
+    scale: 0.01
+  - id: "005B"
+    name: "Channel 5 voltage protection value"
+    access: "rw"
+    channel: 5
+    unit: "V"
+    scale: 0.01
+  - id: "0051"
+    name: "Channel 5 state"
+    access: "rw"
+    channel: 5
+  - id: "0062"
+    name: "Channel 6 current setting"
+    access: "rw"
+    channel: 6
+    unit: "mA"
+    scale: 0.1
+  - id: "0063"
+    name: "Channel 6 current maximum setting"
+    access: "rw"
+    channel: 6
+    unit: "mA"
+    scale: 0.1
+  - id: "0064"
+    name: "Channel 6 current maximum limit"
+    access: "r"
+    channel: 6
+    unit: "mA"
+    scale: 0.1
+  - id: "0065"
+    name: "Channel 6 measured current"
+    access: "r"
+    channel: 6
+    unit: "mA"
+    scale: 0.1
+  - id: "0066"
+    name: "Channel 6 current protection value"
+    access: "rw"
+    channel: 6
+    unit: "mA"
+    scale: 0.1
+  - id: "0067"
+    name: "Channel 6 voltage setting"
+    access: "rw"
+    channel: 6
+    unit: "V"
+    scale: 0.01
+  - id: "0068"
+    name: "Channel 6 voltage maximum setting"
+    access: "rw"
+    channel: 6
+    unit: "V"
+    scale: 0.01
+  - id: "0069"
+    name: "Channel 6 voltage maximum limit"
+    access: "r"
+    channel: 6
+    unit: "V"
+    scale: 0.01
+  - id: "006A"
+    name: "Channel 6 measured voltage"
+    access: "r"
+    channel: 6
+    unit: "V"
+    scale: 0.01
+  - id: "006B"
+    name: "Channel 6 voltage protection value"
+    access: "rw"
+    channel: 6
+    unit: "V"
+    scale: 0.01
+  - id: "0061"
+    name: "Channel 6 state"
+    access: "rw"
+    channel: 6
+  - id: "0072"
+    name: "Channel 7 current setting"
+    access: "rw"
+    channel: 7
+    unit: "mA"
+    scale: 0.1
+  - id: "0073"
+    name: "Channel 7 current maximum setting"
+    access: "rw"
+    channel: 7
+    unit: "mA"
+    scale: 0.1
+  - id: "0074"
+    name: "Channel 7 current maximum limit"
+    access: "r"
+    channel: 7
+    unit: "mA"
+    scale: 0.1
+  - id: "0075"
+    name: "Channel 7 measured current"
+    access: "r"
+    channel: 7
+    unit: "mA"
+    scale: 0.1
+  - id: "0076"
+    name: "Channel 7 current protection value"
+    access: "rw"
+    channel: 7
+    unit: "mA"
+    scale: 0.1
+  - id: "0077"
+    name: "Channel 7 voltage setting"
+    access: "rw"
+    channel: 7
+    unit: "V"
+    scale: 0.01
+  - id: "0078"
+    name: "Channel 7 voltage maximum setting"
+    access: "rw"
+    channel: 7
+    unit: "V"
+    scale: 0.01
+  - id: "0079"
+    name: "Channel 7 voltage maximum limit"
+    access: "r"
+    channel: 7
+    unit: "V"
+    scale: 0.01
+  - id: "007A"
+    name: "Channel 7 measured voltage"
+    access: "r"
+    channel: 7
+    unit: "V"
+    scale: 0.01
+  - id: "007B"
+    name: "Channel 7 voltage protection value"
+    access: "rw"
+    channel: 7
+    unit: "V"
+    scale: 0.01
+  - id: "0071"
+    name: "Channel 7 state"
+    access: "rw"
+    channel: 7
+  - id: "0082"
+    name: "Channel 8 current setting"
+    access: "rw"
+    channel: 8
+    unit: "mA"
+    scale: 0.1
+  - id: "0083"
+    name: "Channel 8 current maximum setting"
+    access: "rw"
+    channel: 8
+    unit: "mA"
+    scale: 0.1
+  - id: "0084"
+    name: "Channel 8 current maximum limit"
+    access: "r"
+    channel: 8
+    unit: "mA"
+    scale: 0.1
+  - id: "0085"
+    name: "Channel 8 measured current"
+    access: "r"
+    channel: 8
+    unit: "mA"
+    scale: 0.1
+  - id: "0086"
+    name: "Channel 8 current protection value"
+    access: "rw"
+    channel: 8
+    unit: "mA"
+    scale: 0.1
+  - id: "0087"
+    name: "Channel 8 voltage setting"
+    access: "rw"
+    channel: 8
+    unit: "V"
+    scale: 0.01
+  - id: "0088"
+    name: "Channel 8 voltage maximum setting"
+    access: "rw"
+    channel: 8
+    unit: "V"
+    scale: 0.01
+  - id: "0089"
+    name: "Channel 8 voltage maximum limit"
+    access: "r"
+    channel: 8
+    unit: "V"
+    scale: 0.01
+  - id: "008A"
+    name: "Channel 8 measured voltage"
+    access: "r"
+    channel: 8
+    unit: "V"
+    scale: 0.01
+  - id: "008B"
+    name: "Channel 8 voltage protection value"
+    access: "rw"
+    channel: 8
+    unit: "V"
+    scale: 0.01
+  - id: "0081"
+    name: "Channel 8 state"
+    access: "rw"
+    channel: 8

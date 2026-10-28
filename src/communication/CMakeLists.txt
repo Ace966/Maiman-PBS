@@ -2,12 +2,12 @@ add_library(maiman_pbs_comm STATIC
     IDataSource.h
     serialdatasource.h
     serialdatasource.cpp
-    DataThread.h
-    DataThread.cpp
+    CommunicationWorker.h
+    CommunicationWorker.cpp
+    CommunicationConnection.h
+    CommunicationConnection.cpp
     PICTextProtocol.h
     PICTextProtocol.cpp
-    PICTextReceiver.h
-    PICTextReceiver.cpp
 )
 set_target_properties(maiman_pbs_comm PROPERTIES AUTOMOC ON)
 add_library(MaimanPBS::Communication ALIAS maiman_pbs_comm)

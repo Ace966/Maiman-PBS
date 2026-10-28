@@ -1,127 +1,69 @@
 #include "serialdatasource.h"
+#include <QThread>
 
-SerialDataSource::SerialDataSource() = default;
+SerialDataSource::~SerialDataSource() { close(); }
 
-void SerialDataSource::init(const QVariantMap& portSettings) {
-    m_port.clear();
-    m_baud = 0;
-    m_validConfiguration = false;
-    m_errorString.clear();
-
-    const auto port = portSettings.value(QStringLiteral("comport"));
-    if (port.metaType().id() != QMetaType::QString) {
-        m_errorString = QStringLiteral("Invalid comport: expected a nonempty port name string.");
-        return;
+bool SerialDataSource::open(const SerialSettings& settings) {
+    Q_ASSERT(thread() == QThread::currentThread());
+    if (m_device) { m_error = QStringLiteral("Serial port is already open."); return false; }
+    m_error.clear(); m_failed = false;
+    auto port = createSerialPort();
+    if (!port) { m_error = QStringLiteral("Serial port factory returned no device."); return false; }
+    port->setPortName(settings.comport);
+    if (!configureBaudRate(*port, settings.baudrate)
+        || !port->setDataBits(QSerialPort::Data8) || !port->setParity(QSerialPort::NoParity)
+        || !port->setStopBits(QSerialPort::OneStop) || !port->setFlowControl(QSerialPort::NoFlowControl)) {
+        m_error = QStringLiteral("Cannot configure '%1': %2 (Qt serial error %3).")
+            .arg(settings.comport, port->errorString()).arg(int(port->error()));
+        return false;
     }
-    const auto portName = port.toString();
-    if (portName.trimmed().isEmpty() || portName.contains(QChar(0))) {
-        m_errorString = QStringLiteral("Invalid comport: expected a nonblank port name without NUL.");
-        return;
+    if (!port->open(QIODevice::ReadWrite)) {
+        m_error = QStringLiteral("Cannot open '%1': %2 (Qt serial error %3).")
+            .arg(settings.comport, port->errorString()).arg(int(port->error()));
+        return false;
     }
-
-    const auto baud = portSettings.value(QStringLiteral("baudrate"));
-    const int baudValue = baud.metaType().id() == QMetaType::Int ? baud.toInt() : 0;
-    if (baudValue <= 0) {
-        m_errorString = QStringLiteral("Invalid baudrate: expected a positive Int value.");
-        return;
-    }
-
-    m_port = portName;
-    m_baud = baudValue;
-    m_validConfiguration = true;
-}
-
-QIODevice* SerialDataSource::createAndConnect() {
-    if (!m_validConfiguration) {
-        return nullptr;
-    }
-    if (m_device) {
-        m_errorString = QStringLiteral("The caller still owns the previous serial device; destroy it before creating another.");
-        return nullptr;
-    }
-
-    m_errorString.clear();
-    auto device = createSerialPort();
-    if (!device) {
-        m_errorString = QStringLiteral("Serial port creation returned no device.");
-        return nullptr;
-    }
-    if (!configureBaudRate(*device, m_baud)) {
-        m_errorString = QStringLiteral("Cannot configure baudrate %1 for '%2': %3 (Qt serial error %4).")
-        .arg(m_baud).arg(m_port, device->errorString()).arg(int(device->error()));
-        return nullptr;
-    }
-    device->setPortName(m_port);
-    if (!device->open(QIODevice::ReadWrite)) {
-        m_errorString = QStringLiteral("Cannot open serial port '%1': %2 (Qt serial error %3).")
-        .arg(m_port, device->errorString()).arg(int(device->error()));
-        return nullptr;
-    }
-
-    m_device = device.get();
-    return device.release();
-}
-
-QString SerialDataSource::errorString() const {
-    if (m_device && m_device->error() != QSerialPort::NoError
-        && m_device->error() != QSerialPort::TimeoutError) {
-        return QStringLiteral("%1 (Qt serial error %2).")
-            .arg(m_device->errorString()).arg(int(m_device->error()));
-    }
-    if (!m_errorString.isEmpty()) return m_errorString;
-    if (m_device && !m_device->isOpen()) return QStringLiteral("Serial port is closed.");
-    return m_errorString;
-}
-
-bool SerialDataSource::requireOpen() {
-    if (m_device && m_device->isOpen()) return true;
-    m_errorString = QStringLiteral("Serial port is not open.");
-    return false;
+    m_device = port.release();
+    m_device->setParent(this); // Local RAII ownership transfers to Qt ownership.
+    connect(m_device, &QIODevice::readyRead, this, &IDataSource::readyRead);
+    connect(m_device, &QIODevice::bytesWritten, this, &IDataSource::bytesWritten);
+    connect(m_device, &QSerialPort::errorOccurred, this, [this](QSerialPort::SerialPortError error) {
+        if (error == QSerialPort::NoError) return;
+        m_error = QStringLiteral("%1 (Qt serial error %2).")
+            .arg(m_device->errorString()).arg(int(error));
+        m_failed = true;
+        emit errorOccurred(m_error);
+    });
+    return true;
 }
 
 void SerialDataSource::close() {
-    if (m_device && m_device->isOpen()) m_device->close();
+    Q_ASSERT(thread() == QThread::currentThread());
+    auto* port = m_device;
+    m_device = nullptr;
+    if (!port) return;
+    disconnect(port, nullptr, this, nullptr);
+    if (port->isOpen()) port->close();
+    delete port;
 }
-
 qint64 SerialDataSource::write(const QByteArray& data) {
-    if (!requireOpen()) return -1;
-    const qint64 count = m_device->write(data);
-    if (count < 0) m_errorString = m_device->errorString();
+    Q_ASSERT(thread() == QThread::currentThread());
+    if (!m_device || !m_device->isOpen()) { m_error = QStringLiteral("Serial port is not open."); return -1; }
+    const auto count = m_device->write(data);
+    if (count < 0) { m_error = m_device->errorString(); m_failed = true; }
     return count;
 }
-
 qint64 SerialDataSource::read(char* data, qint64 maximum) {
-    if (!requireOpen()) return -1;
-    const qint64 count = m_device->read(data, maximum);
-    if (count < 0) m_errorString = m_device->errorString();
+    Q_ASSERT(thread() == QThread::currentThread());
+    if (!m_device || !m_device->isOpen()) { m_error = QStringLiteral("Serial port is not open."); return -1; }
+    const auto count = m_device->read(data, maximum);
+    if (count < 0) { m_error = m_device->errorString(); m_failed = true; }
     return count;
 }
-
-qint64 SerialDataSource::bytesAvailable() const {
-    return m_device ? m_device->bytesAvailable() : 0;
-}
-
-qint64 SerialDataSource::bytesToWrite() const {
-    return m_device ? m_device->bytesToWrite() : 0;
-}
-
-bool SerialDataSource::waitForReadyRead(int milliseconds) {
-    return requireOpen() && m_device->waitForReadyRead(milliseconds);
-}
-
-bool SerialDataSource::waitForBytesWritten(int milliseconds) {
-    return requireOpen() && m_device->waitForBytesWritten(milliseconds);
-}
-
+qint64 SerialDataSource::bytesAvailable() const { return m_device ? m_device->bytesAvailable() : 0; }
+qint64 SerialDataSource::bytesToWrite() const { return m_device ? m_device->bytesToWrite() : 0; }
 bool SerialDataSource::hasError() const {
-    return !m_device || !m_device->isOpen()
-        || (m_device->error() != QSerialPort::NoError && m_device->error() != QSerialPort::TimeoutError);
+    return !m_device || !m_device->isOpen() || m_failed || m_device->error() != QSerialPort::NoError;
 }
-
-std::unique_ptr<QSerialPort> SerialDataSource::createSerialPort() {
-    return std::make_unique<QSerialPort>();
-}
-
-bool SerialDataSource::configureBaudRate(QSerialPort& port, qint32 baud) {
-    return port.setBaudRate(baud);
-}
+QString SerialDataSource::errorString() const { return m_error; }
+std::unique_ptr<QSerialPort> SerialDataSource::createSerialPort() { return std::make_unique<QSerialPort>(); }
+bool SerialDataSource::configureBaudRate(QSerialPort& port, qint32 baud) { return port.setBaudRate(baud); }

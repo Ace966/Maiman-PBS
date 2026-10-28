@@ -1,0 +1,293 @@
+<?xml version='1.0' encoding='utf-8'?>
+<DB pbsMetadataVersion="1">
+  <Device id="1700" name="PIC-8" pbsChannelCount="8">
+    <Commands>
+      <Command code="0701" pbsName="Serial number" pbsAccess="r" divider="1" tol="0" />
+      <Command code="0710" pbsName="Firmware version" pbsAccess="r" divider="1" tol="0" />
+      <Command code="0720" pbsName="RS-485 address storage (USB parameter only)" pbsAccess="rw" divider="1" tol="0" />
+      <Command code="0800" pbsName="General lock status bitmask" pbsAccess="r" divider="1" tol="0" />
+      <Command code="0801" pbsName="Overcurrent protection status bitmask" pbsAccess="r" divider="1" tol="0" />
+      <Command code="0802" pbsName="Overvoltage protection status bitmask" pbsAccess="r" divider="1" tol="0" />
+      <Command code="0001" pbsName="Channel zero state and memory commands" pbsAccess="rw" pbsChannel="0" divider="1" tol="0" />
+      <Command code="0AF4" pbsName="PCB temperature" pbsAccess="r" divider="10" tol="1" />
+      <Command code="0408" pbsName="Measured input voltage" pbsAccess="r" unit="V" divider="10" tol="1" />
+      <Command code="0012" pbsName="Channel 1 current setting" pbsAccess="rw" pbsChannel="1" unit="mA" divider="10" tol="1" />
+      <Command code="0013" pbsName="Channel 1 current maximum setting" pbsAccess="rw" pbsChannel="1" unit="mA" divider="10" tol="1" />
+      <Command code="0014" pbsName="Channel 1 current maximum limit" pbsAccess="r" pbsChannel="1" unit="mA" divider="10" tol="1" />
+      <Command code="0015" pbsName="Channel 1 measured current" pbsAccess="r" pbsChannel="1" unit="mA" divider="10" tol="1" />
+      <Command code="0016" pbsName="Channel 1 current protection value" pbsAccess="rw" pbsChannel="1" unit="mA" divider="10" tol="1" />
+      <Command code="0017" pbsName="Channel 1 voltage setting" pbsAccess="rw" pbsChannel="1" unit="V" divider="100" tol="2" />
+      <Command code="0018" pbsName="Channel 1 voltage maximum setting" pbsAccess="rw" pbsChannel="1" unit="V" divider="100" tol="2" />
+      <Command code="0019" pbsName="Channel 1 voltage maximum limit" pbsAccess="r" pbsChannel="1" unit="V" divider="100" tol="2" />
+      <Command code="001A" pbsName="Channel 1 measured voltage" pbsAccess="r" pbsChannel="1" unit="V" divider="100" tol="2" />
+      <Command code="001B" pbsName="Channel 1 voltage protection value" pbsAccess="rw" pbsChannel="1" unit="V" divider="100" tol="2" />
+      <Command code="0011" pbsName="Channel 1 state" pbsAccess="rw" pbsChannel="1" divider="1" tol="0" />
+      <Command code="0022" pbsName="Channel 2 current setting" pbsAccess="rw" pbsChannel="2" unit="mA" divider="10" tol="1" />
+      <Command code="0023" pbsName="Channel 2 current maximum setting" pbsAccess="rw" pbsChannel="2" unit="mA" divider="10" tol="1" />
+      <Command code="0024" pbsName="Channel 2 current maximum limit" pbsAccess="r" pbsChannel="2" unit="mA" divider="10" tol="1" />
+      <Command code="0025" pbsName="Channel 2 measured current" pbsAccess="r" pbsChannel="2" unit="mA" divider="10" tol="1" />
+      <Command code="0026" pbsName="Channel 2 current protection value" pbsAccess="rw" pbsChannel="2" unit="mA" divider="10" tol="1" />
+      <Command code="0027" pbsName="Channel 2 voltage setting" pbsAccess="rw" pbsChannel="2" unit="V" divider="100" tol="2" />
+      <Command code="0028" pbsName="Channel 2 voltage maximum setting" pbsAccess="rw" pbsChannel="2" unit="V" divider="100" tol="2" />
+      <Command code="0029" pbsName="Channel 2 voltage maximum limit" pbsAccess="r" pbsChannel="2" unit="V" divider="100" tol="2" />
+      <Command code="002A" pbsName="Channel 2 measured voltage" pbsAccess="r" pbsChannel="2" unit="V" divider="100" tol="2" />
+      <Command code="002B" pbsName="Channel 2 voltage protection value" pbsAccess="rw" pbsChannel="2" unit="V" divider="100" tol="2" />
+      <Command code="0021" pbsName="Channel 2 state" pbsAccess="rw" pbsChannel="2" divider="1" tol="0" />
+      <Command code="0032" pbsName="Channel 3 current setting" pbsAccess="rw" pbsChannel="3" unit="mA" divider="10" tol="1" />
+      <Command code="0033" pbsName="Channel 3 current maximum setting" pbsAccess="rw" pbsChannel="3" unit="mA" divider="10" tol="1" />
+      <Command code="0034" pbsName="Channel 3 current maximum limit" pbsAccess="r" pbsChannel="3" unit="mA" divider="10" tol="1" />
+      <Command code="0035" pbsName="Channel 3 measured current" pbsAccess="r" pbsChannel="3" unit="mA" divider="10" tol="1" />
+      <Command code="0036" pbsName="Channel 3 current protection value" pbsAccess="rw" pbsChannel="3" unit="mA" divider="10" tol="1" />
+      <Command code="0037" pbsName="Channel 3 voltage setting" pbsAccess="rw" pbsChannel="3" unit="V" divider="100" tol="2" />
+      <Command code="0038" pbsName="Channel 3 voltage maximum setting" pbsAccess="rw" pbsChannel="3" unit="V" divider="100" tol="2" />
+      <Command code="0039" pbsName="Channel 3 voltage maximum limit" pbsAccess="r" pbsChannel="3" unit="V" divider="100" tol="2" />
+      <Command code="003A" pbsName="Channel 3 measured voltage" pbsAccess="r" pbsChannel="3" unit="V" divider="100" tol="2" />
+      <Command code="003B" pbsName="Channel 3 voltage protection value" pbsAccess="rw" pbsChannel="3" unit="V" divider="100" tol="2" />
+      <Command code="0031" pbsName="Channel 3 state" pbsAccess="rw" pbsChannel="3" divider="1" tol="0" />
+      <Command code="0042" pbsName="Channel 4 current setting" pbsAccess="rw" pbsChannel="4" unit="mA" divider="10" tol="1" />
+      <Command code="0043" pbsName="Channel 4 current maximum setting" pbsAccess="rw" pbsChannel="4" unit="mA" divider="10" tol="1" />
+      <Command code="0044" pbsName="Channel 4 current maximum limit" pbsAccess="r" pbsChannel="4" unit="mA" divider="10" tol="1" />
+      <Command code="0045" pbsName="Channel 4 measured current" pbsAccess="r" pbsChannel="4" unit="mA" divider="10" tol="1" />
+      <Command code="0046" pbsName="Channel 4 current protection value" pbsAccess="rw" pbsChannel="4" unit="mA" divider="10" tol="1" />
+      <Command code="0047" pbsName="Channel 4 voltage setting" pbsAccess="rw" pbsChannel="4" unit="V" divider="100" tol="2" />
+      <Command code="0048" pbsName="Channel 4 voltage maximum setting" pbsAccess="rw" pbsChannel="4" unit="V" divider="100" tol="2" />
+      <Command code="0049" pbsName="Channel 4 voltage maximum limit" pbsAccess="r" pbsChannel="4" unit="V" divider="100" tol="2" />
+      <Command code="004A" pbsName="Channel 4 measured voltage" pbsAccess="r" pbsChannel="4" unit="V" divider="100" tol="2" />
+      <Command code="004B" pbsName="Channel 4 voltage protection value" pbsAccess="rw" pbsChannel="4" unit="V" divider="100" tol="2" />
+      <Command code="0041" pbsName="Channel 4 state" pbsAccess="rw" pbsChannel="4" divider="1" tol="0" />
+      <Command code="0052" pbsName="Channel 5 current setting" pbsAccess="rw" pbsChannel="5" unit="mA" divider="10" tol="1" />
+      <Command code="0053" pbsName="Channel 5 current maximum setting" pbsAccess="rw" pbsChannel="5" unit="mA" divider="10" tol="1" />
+      <Command code="0054" pbsName="Channel 5 current maximum limit" pbsAccess="r" pbsChannel="5" unit="mA" divider="10" tol="1" />
+      <Command code="0055" pbsName="Channel 5 measured current" pbsAccess="r" pbsChannel="5" unit="mA" divider="10" tol="1" />
+      <Command code="0056" pbsName="Channel 5 current protection value" pbsAccess="rw" pbsChannel="5" unit="mA" divider="10" tol="1" />
+      <Command code="0057" pbsName="Channel 5 voltage setting" pbsAccess="rw" pbsChannel="5" unit="V" divider="100" tol="2" />
+      <Command code="0058" pbsName="Channel 5 voltage maximum setting" pbsAccess="rw" pbsChannel="5" unit="V" divider="100" tol="2" />
+      <Command code="0059" pbsName="Channel 5 voltage maximum limit" pbsAccess="r" pbsChannel="5" unit="V" divider="100" tol="2" />
+      <Command code="005A" pbsName="Channel 5 measured voltage" pbsAccess="r" pbsChannel="5" unit="V" divider="100" tol="2" />
+      <Command code="005B" pbsName="Channel 5 voltage protection value" pbsAccess="rw" pbsChannel="5" unit="V" divider="100" tol="2" />
+      <Command code="0051" pbsName="Channel 5 state" pbsAccess="rw" pbsChannel="5" divider="1" tol="0" />
+      <Command code="0062" pbsName="Channel 6 current setting" pbsAccess="rw" pbsChannel="6" unit="mA" divider="10" tol="1" />
+      <Command code="0063" pbsName="Channel 6 current maximum setting" pbsAccess="rw" pbsChannel="6" unit="mA" divider="10" tol="1" />
+      <Command code="0064" pbsName="Channel 6 current maximum limit" pbsAccess="r" pbsChannel="6" unit="mA" divider="10" tol="1" />
+      <Command code="0065" pbsName="Channel 6 measured current" pbsAccess="r" pbsChannel="6" unit="mA" divider="10" tol="1" />
+      <Command code="0066" pbsName="Channel 6 current protection value" pbsAccess="rw" pbsChannel="6" unit="mA" divider="10" tol="1" />
+      <Command code="0067" pbsName="Channel 6 voltage setting" pbsAccess="rw" pbsChannel="6" unit="V" divider="100" tol="2" />
+      <Command code="0068" pbsName="Channel 6 voltage maximum setting" pbsAccess="rw" pbsChannel="6" unit="V" divider="100" tol="2" />
+      <Command code="0069" pbsName="Channel 6 voltage maximum limit" pbsAccess="r" pbsChannel="6" unit="V" divider="100" tol="2" />
+      <Command code="006A" pbsName="Channel 6 measured voltage" pbsAccess="r" pbsChannel="6" unit="V" divider="100" tol="2" />
+      <Command code="006B" pbsName="Channel 6 voltage protection value" pbsAccess="rw" pbsChannel="6" unit="V" divider="100" tol="2" />
+      <Command code="0061" pbsName="Channel 6 state" pbsAccess="rw" pbsChannel="6" divider="1" tol="0" />
+      <Command code="0072" pbsName="Channel 7 current setting" pbsAccess="rw" pbsChannel="7" unit="mA" divider="10" tol="1" />
+      <Command code="0073" pbsName="Channel 7 current maximum setting" pbsAccess="rw" pbsChannel="7" unit="mA" divider="10" tol="1" />
+      <Command code="0074" pbsName="Channel 7 current maximum limit" pbsAccess="r" pbsChannel="7" unit="mA" divider="10" tol="1" />
+      <Command code="0075" pbsName="Channel 7 measured current" pbsAccess="r" pbsChannel="7" unit="mA" divider="10" tol="1" />
+      <Command code="0076" pbsName="Channel 7 current protection value" pbsAccess="rw" pbsChannel="7" unit="mA" divider="10" tol="1" />
+      <Command code="0077" pbsName="Channel 7 voltage setting" pbsAccess="rw" pbsChannel="7" unit="V" divider="100" tol="2" />
+      <Command code="0078" pbsName="Channel 7 voltage maximum setting" pbsAccess="rw" pbsChannel="7" unit="V" divider="100" tol="2" />
+      <Command code="0079" pbsName="Channel 7 voltage maximum limit" pbsAccess="r" pbsChannel="7" unit="V" divider="100" tol="2" />
+      <Command code="007A" pbsName="Channel 7 measured voltage" pbsAccess="r" pbsChannel="7" unit="V" divider="100" tol="2" />
+      <Command code="007B" pbsName="Channel 7 voltage protection value" pbsAccess="rw" pbsChannel="7" unit="V" divider="100" tol="2" />
+      <Command code="0071" pbsName="Channel 7 state" pbsAccess="rw" pbsChannel="7" divider="1" tol="0" />
+      <Command code="0082" pbsName="Channel 8 current setting" pbsAccess="rw" pbsChannel="8" unit="mA" divider="10" tol="1" />
+      <Command code="0083" pbsName="Channel 8 current maximum setting" pbsAccess="rw" pbsChannel="8" unit="mA" divider="10" tol="1" />
+      <Command code="0084" pbsName="Channel 8 current maximum limit" pbsAccess="r" pbsChannel="8" unit="mA" divider="10" tol="1" />
+      <Command code="0085" pbsName="Channel 8 measured current" pbsAccess="r" pbsChannel="8" unit="mA" divider="10" tol="1" />
+      <Command code="0086" pbsName="Channel 8 current protection value" pbsAccess="rw" pbsChannel="8" unit="mA" divider="10" tol="1" />
+      <Command code="0087" pbsName="Channel 8 voltage setting" pbsAccess="rw" pbsChannel="8" unit="V" divider="100" tol="2" />
+      <Command code="0088" pbsName="Channel 8 voltage maximum setting" pbsAccess="rw" pbsChannel="8" unit="V" divider="100" tol="2" />
+      <Command code="0089" pbsName="Channel 8 voltage maximum limit" pbsAccess="r" pbsChannel="8" unit="V" divider="100" tol="2" />
+      <Command code="008A" pbsName="Channel 8 measured voltage" pbsAccess="r" pbsChannel="8" unit="V" divider="100" tol="2" />
+      <Command code="008B" pbsName="Channel 8 voltage protection value" pbsAccess="rw" pbsChannel="8" unit="V" divider="100" tol="2" />
+      <Command code="0081" pbsName="Channel 8 state" pbsAccess="rw" pbsChannel="8" divider="1" tol="0" />
+    </Commands>
+  </Device>
+  <Device id="1701" name="PIC-16" pbsChannelCount="16">
+    <Commands>
+      <Command code="0701" pbsName="Serial number" pbsAccess="r" divider="1" tol="0" />
+      <Command code="0710" pbsName="Firmware version" pbsAccess="r" divider="1" tol="0" />
+      <Command code="0720" pbsName="RS-485 address storage (USB parameter only)" pbsAccess="rw" divider="1" tol="0" />
+      <Command code="0800" pbsName="General lock status bitmask" pbsAccess="r" divider="1" tol="0" />
+      <Command code="0801" pbsName="Overcurrent protection status bitmask" pbsAccess="r" divider="1" tol="0" />
+      <Command code="0802" pbsName="Overvoltage protection status bitmask" pbsAccess="r" divider="1" tol="0" />
+      <Command code="0001" pbsName="Channel zero state and memory commands" pbsAccess="rw" pbsChannel="0" divider="1" tol="0" />
+      <Command code="0AF4" pbsName="PCB temperature" pbsAccess="r" divider="10" tol="1" />
+      <Command code="0408" pbsName="Measured input voltage" pbsAccess="r" unit="V" divider="10" tol="1" />
+      <Command code="0012" pbsName="Channel 1 current setting" pbsAccess="rw" pbsChannel="1" unit="mA" divider="10" tol="1" />
+      <Command code="0013" pbsName="Channel 1 current maximum setting" pbsAccess="rw" pbsChannel="1" unit="mA" divider="10" tol="1" />
+      <Command code="0014" pbsName="Channel 1 current maximum limit" pbsAccess="r" pbsChannel="1" unit="mA" divider="10" tol="1" />
+      <Command code="0015" pbsName="Channel 1 measured current" pbsAccess="r" pbsChannel="1" unit="mA" divider="10" tol="1" />
+      <Command code="0016" pbsName="Channel 1 current protection value" pbsAccess="rw" pbsChannel="1" unit="mA" divider="10" tol="1" />
+      <Command code="0017" pbsName="Channel 1 voltage setting" pbsAccess="rw" pbsChannel="1" unit="V" divider="100" tol="2" />
+      <Command code="0018" pbsName="Channel 1 voltage maximum setting" pbsAccess="rw" pbsChannel="1" unit="V" divider="100" tol="2" />
+      <Command code="0019" pbsName="Channel 1 voltage maximum limit" pbsAccess="r" pbsChannel="1" unit="V" divider="100" tol="2" />
+      <Command code="001A" pbsName="Channel 1 measured voltage" pbsAccess="r" pbsChannel="1" unit="V" divider="100" tol="2" />
+      <Command code="001B" pbsName="Channel 1 voltage protection value" pbsAccess="rw" pbsChannel="1" unit="V" divider="100" tol="2" />
+      <Command code="0011" pbsName="Channel 1 state" pbsAccess="rw" pbsChannel="1" divider="1" tol="0" />
+      <Command code="0022" pbsName="Channel 2 current setting" pbsAccess="rw" pbsChannel="2" unit="mA" divider="10" tol="1" />
+      <Command code="0023" pbsName="Channel 2 current maximum setting" pbsAccess="rw" pbsChannel="2" unit="mA" divider="10" tol="1" />
+      <Command code="0024" pbsName="Channel 2 current maximum limit" pbsAccess="r" pbsChannel="2" unit="mA" divider="10" tol="1" />
+      <Command code="0025" pbsName="Channel 2 measured current" pbsAccess="r" pbsChannel="2" unit="mA" divider="10" tol="1" />
+      <Command code="0026" pbsName="Channel 2 current protection value" pbsAccess="rw" pbsChannel="2" unit="mA" divider="10" tol="1" />
+      <Command code="0027" pbsName="Channel 2 voltage setting" pbsAccess="rw" pbsChannel="2" unit="V" divider="100" tol="2" />
+      <Command code="0028" pbsName="Channel 2 voltage maximum setting" pbsAccess="rw" pbsChannel="2" unit="V" divider="100" tol="2" />
+      <Command code="0029" pbsName="Channel 2 voltage maximum limit" pbsAccess="r" pbsChannel="2" unit="V" divider="100" tol="2" />
+      <Command code="002A" pbsName="Channel 2 measured voltage" pbsAccess="r" pbsChannel="2" unit="V" divider="100" tol="2" />
+      <Command code="002B" pbsName="Channel 2 voltage protection value" pbsAccess="rw" pbsChannel="2" unit="V" divider="100" tol="2" />
+      <Command code="0021" pbsName="Channel 2 state" pbsAccess="rw" pbsChannel="2" divider="1" tol="0" />
+      <Command code="0032" pbsName="Channel 3 current setting" pbsAccess="rw" pbsChannel="3" unit="mA" divider="10" tol="1" />
+      <Command code="0033" pbsName="Channel 3 current maximum setting" pbsAccess="rw" pbsChannel="3" unit="mA" divider="10" tol="1" />
+      <Command code="0034" pbsName="Channel 3 current maximum limit" pbsAccess="r" pbsChannel="3" unit="mA" divider="10" tol="1" />
+      <Command code="0035" pbsName="Channel 3 measured current" pbsAccess="r" pbsChannel="3" unit="mA" divider="10" tol="1" />
+      <Command code="0036" pbsName="Channel 3 current protection value" pbsAccess="rw" pbsChannel="3" unit="mA" divider="10" tol="1" />
+      <Command code="0037" pbsName="Channel 3 voltage setting" pbsAccess="rw" pbsChannel="3" unit="V" divider="100" tol="2" />
+      <Command code="0038" pbsName="Channel 3 voltage maximum setting" pbsAccess="rw" pbsChannel="3" unit="V" divider="100" tol="2" />
+      <Command code="0039" pbsName="Channel 3 voltage maximum limit" pbsAccess="r" pbsChannel="3" unit="V" divider="100" tol="2" />
+      <Command code="003A" pbsName="Channel 3 measured voltage" pbsAccess="r" pbsChannel="3" unit="V" divider="100" tol="2" />
+      <Command code="003B" pbsName="Channel 3 voltage protection value" pbsAccess="rw" pbsChannel="3" unit="V" divider="100" tol="2" />
+      <Command code="0031" pbsName="Channel 3 state" pbsAccess="rw" pbsChannel="3" divider="1" tol="0" />
+      <Command code="0042" pbsName="Channel 4 current setting" pbsAccess="rw" pbsChannel="4" unit="mA" divider="10" tol="1" />
+      <Command code="0043" pbsName="Channel 4 current maximum setting" pbsAccess="rw" pbsChannel="4" unit="mA" divider="10" tol="1" />
+      <Command code="0044" pbsName="Channel 4 current maximum limit" pbsAccess="r" pbsChannel="4" unit="mA" divider="10" tol="1" />
+      <Command code="0045" pbsName="Channel 4 measured current" pbsAccess="r" pbsChannel="4" unit="mA" divider="10" tol="1" />
+      <Command code="0046" pbsName="Channel 4 current protection value" pbsAccess="rw" pbsChannel="4" unit="mA" divider="10" tol="1" />
+      <Command code="0047" pbsName="Channel 4 voltage setting" pbsAccess="rw" pbsChannel="4" unit="V" divider="100" tol="2" />
+      <Command code="0048" pbsName="Channel 4 voltage maximum setting" pbsAccess="rw" pbsChannel="4" unit="V" divider="100" tol="2" />
+      <Command code="0049" pbsName="Channel 4 voltage maximum limit" pbsAccess="r" pbsChannel="4" unit="V" divider="100" tol="2" />
+      <Command code="004A" pbsName="Channel 4 measured voltage" pbsAccess="r" pbsChannel="4" unit="V" divider="100" tol="2" />
+      <Command code="004B" pbsName="Channel 4 voltage protection value" pbsAccess="rw" pbsChannel="4" unit="V" divider="100" tol="2" />
+      <Command code="0041" pbsName="Channel 4 state" pbsAccess="rw" pbsChannel="4" divider="1" tol="0" />
+      <Command code="0052" pbsName="Channel 5 current setting" pbsAccess="rw" pbsChannel="5" unit="mA" divider="10" tol="1" />
+      <Command code="0053" pbsName="Channel 5 current maximum setting" pbsAccess="rw" pbsChannel="5" unit="mA" divider="10" tol="1" />
+      <Command code="0054" pbsName="Channel 5 current maximum limit" pbsAccess="r" pbsChannel="5" unit="mA" divider="10" tol="1" />
+      <Command code="0055" pbsName="Channel 5 measured current" pbsAccess="r" pbsChannel="5" unit="mA" divider="10" tol="1" />
+      <Command code="0056" pbsName="Channel 5 current protection value" pbsAccess="rw" pbsChannel="5" unit="mA" divider="10" tol="1" />
+      <Command code="0057" pbsName="Channel 5 voltage setting" pbsAccess="rw" pbsChannel="5" unit="V" divider="100" tol="2" />
+      <Command code="0058" pbsName="Channel 5 voltage maximum setting" pbsAccess="rw" pbsChannel="5" unit="V" divider="100" tol="2" />
+      <Command code="0059" pbsName="Channel 5 voltage maximum limit" pbsAccess="r" pbsChannel="5" unit="V" divider="100" tol="2" />
+      <Command code="005A" pbsName="Channel 5 measured voltage" pbsAccess="r" pbsChannel="5" unit="V" divider="100" tol="2" />
+      <Command code="005B" pbsName="Channel 5 voltage protection value" pbsAccess="rw" pbsChannel="5" unit="V" divider="100" tol="2" />
+      <Command code="0051" pbsName="Channel 5 state" pbsAccess="rw" pbsChannel="5" divider="1" tol="0" />
+      <Command code="0062" pbsName="Channel 6 current setting" pbsAccess="rw" pbsChannel="6" unit="mA" divider="10" tol="1" />
+      <Command code="0063" pbsName="Channel 6 current maximum setting" pbsAccess="rw" pbsChannel="6" unit="mA" divider="10" tol="1" />
+      <Command code="0064" pbsName="Channel 6 current maximum limit" pbsAccess="r" pbsChannel="6" unit="mA" divider="10" tol="1" />
+      <Command code="0065" pbsName="Channel 6 measured current" pbsAccess="r" pbsChannel="6" unit="mA" divider="10" tol="1" />
+      <Command code="0066" pbsName="Channel 6 current protection value" pbsAccess="rw" pbsChannel="6" unit="mA" divider="10" tol="1" />
+      <Command code="0067" pbsName="Channel 6 voltage setting" pbsAccess="rw" pbsChannel="6" unit="V" divider="100" tol="2" />
+      <Command code="0068" pbsName="Channel 6 voltage maximum setting" pbsAccess="rw" pbsChannel="6" unit="V" divider="100" tol="2" />
+      <Command code="0069" pbsName="Channel 6 voltage maximum limit" pbsAccess="r" pbsChannel="6" unit="V" divider="100" tol="2" />
+      <Command code="006A" pbsName="Channel 6 measured voltage" pbsAccess="r" pbsChannel="6" unit="V" divider="100" tol="2" />
+      <Command code="006B" pbsName="Channel 6 voltage protection value" pbsAccess="rw" pbsChannel="6" unit="V" divider="100" tol="2" />
+      <Command code="0061" pbsName="Channel 6 state" pbsAccess="rw" pbsChannel="6" divider="1" tol="0" />
+      <Command code="0072" pbsName="Channel 7 current setting" pbsAccess="rw" pbsChannel="7" unit="mA" divider="10" tol="1" />
+      <Command code="0073" pbsName="Channel 7 current maximum setting" pbsAccess="rw" pbsChannel="7" unit="mA" divider="10" tol="1" />
+      <Command code="0074" pbsName="Channel 7 current maximum limit" pbsAccess="r" pbsChannel="7" unit="mA" divider="10" tol="1" />
+      <Command code="0075" pbsName="Channel 7 measured current" pbsAccess="r" pbsChannel="7" unit="mA" divider="10" tol="1" />
+      <Command code="0076" pbsName="Channel 7 current protection value" pbsAccess="rw" pbsChannel="7" unit="mA" divider="10" tol="1" />
+      <Command code="0077" pbsName="Channel 7 voltage setting" pbsAccess="rw" pbsChannel="7" unit="V" divider="100" tol="2" />
+      <Command code="0078" pbsName="Channel 7 voltage maximum setting" pbsAccess="rw" pbsChannel="7" unit="V" divider="100" tol="2" />
+      <Command code="0079" pbsName="Channel 7 voltage maximum limit" pbsAccess="r" pbsChannel="7" unit="V" divider="100" tol="2" />
+      <Command code="007A" pbsName="Channel 7 measured voltage" pbsAccess="r" pbsChannel="7" unit="V" divider="100" tol="2" />
+      <Command code="007B" pbsName="Channel 7 voltage protection value" pbsAccess="rw" pbsChannel="7" unit="V" divider="100" tol="2" />
+      <Command code="0071" pbsName="Channel 7 state" pbsAccess="rw" pbsChannel="7" divider="1" tol="0" />
+      <Command code="0082" pbsName="Channel 8 current setting" pbsAccess="rw" pbsChannel="8" unit="mA" divider="10" tol="1" />
+      <Command code="0083" pbsName="Channel 8 current maximum setting" pbsAccess="rw" pbsChannel="8" unit="mA" divider="10" tol="1" />
+      <Command code="0084" pbsName="Channel 8 current maximum limit" pbsAccess="r" pbsChannel="8" unit="mA" divider="10" tol="1" />
+      <Command code="0085" pbsName="Channel 8 measured current" pbsAccess="r" pbsChannel="8" unit="mA" divider="10" tol="1" />
+      <Command code="0086" pbsName="Channel 8 current protection value" pbsAccess="rw" pbsChannel="8" unit="mA" divider="10" tol="1" />
+      <Command code="0087" pbsName="Channel 8 voltage setting" pbsAccess="rw" pbsChannel="8" unit="V" divider="100" tol="2" />
+      <Command code="0088" pbsName="Channel 8 voltage maximum setting" pbsAccess="rw" pbsChannel="8" unit="V" divider="100" tol="2" />
+      <Command code="0089" pbsName="Channel 8 voltage maximum limit" pbsAccess="r" pbsChannel="8" unit="V" divider="100" tol="2" />
+      <Command code="008A" pbsName="Channel 8 measured voltage" pbsAccess="r" pbsChannel="8" unit="V" divider="100" tol="2" />
+      <Command code="008B" pbsName="Channel 8 voltage protection value" pbsAccess="rw" pbsChannel="8" unit="V" divider="100" tol="2" />
+      <Command code="0081" pbsName="Channel 8 state" pbsAccess="rw" pbsChannel="8" divider="1" tol="0" />
+      <Command code="0092" pbsName="Channel 9 current setting" pbsAccess="rw" pbsChannel="9" unit="mA" divider="10" tol="1" />
+      <Command code="0093" pbsName="Channel 9 current maximum setting" pbsAccess="rw" pbsChannel="9" unit="mA" divider="10" tol="1" />
+      <Command code="0094" pbsName="Channel 9 current maximum limit" pbsAccess="r" pbsChannel="9" unit="mA" divider="10" tol="1" />
+      <Command code="0095" pbsName="Channel 9 measured current" pbsAccess="r" pbsChannel="9" unit="mA" divider="10" tol="1" />
+      <Command code="0096" pbsName="Channel 9 current protection value" pbsAccess="rw" pbsChannel="9" unit="mA" divider="10" tol="1" />
+      <Command code="0097" pbsName="Channel 9 voltage setting" pbsAccess="rw" pbsChannel="9" unit="V" divider="100" tol="2" />
+      <Command code="0098" pbsName="Channel 9 voltage maximum setting" pbsAccess="rw" pbsChannel="9" unit="V" divider="100" tol="2" />
+      <Command code="0099" pbsName="Channel 9 voltage maximum limit" pbsAccess="r" pbsChannel="9" unit="V" divider="100" tol="2" />
+      <Command code="009A" pbsName="Channel 9 measured voltage" pbsAccess="r" pbsChannel="9" unit="V" divider="100" tol="2" />
+      <Command code="009B" pbsName="Channel 9 voltage protection value" pbsAccess="rw" pbsChannel="9" unit="V" divider="100" tol="2" />
+      <Command code="0091" pbsName="Channel 9 state" pbsAccess="rw" pbsChannel="9" divider="1" tol="0" />
+      <Command code="00A2" pbsName="Channel 10 current setting" pbsAccess="rw" pbsChannel="10" unit="mA" divider="10" tol="1" />
+      <Command code="00A3" pbsName="Channel 10 current maximum setting" pbsAccess="rw" pbsChannel="10" unit="mA" divider="10" tol="1" />
+      <Command code="00A4" pbsName="Channel 10 current maximum limit" pbsAccess="r" pbsChannel="10" unit="mA" divider="10" tol="1" />
+      <Command code="00A5" pbsName="Channel 10 measured current" pbsAccess="r" pbsChannel="10" unit="mA" divider="10" tol="1" />
+      <Command code="00A6" pbsName="Channel 10 current protection value" pbsAccess="rw" pbsChannel="10" unit="mA" divider="10" tol="1" />
+      <Command code="00A7" pbsName="Channel 10 voltage setting" pbsAccess="rw" pbsChannel="10" unit="V" divider="100" tol="2" />
+      <Command code="00A8" pbsName="Channel 10 voltage maximum setting" pbsAccess="rw" pbsChannel="10" unit="V" divider="100" tol="2" />
+      <Command code="00A9" pbsName="Channel 10 voltage maximum limit" pbsAccess="r" pbsChannel="10" unit="V" divider="100" tol="2" />
+      <Command code="00AA" pbsName="Channel 10 measured voltage" pbsAccess="r" pbsChannel="10" unit="V" divider="100" tol="2" />
+      <Command code="00AB" pbsName="Channel 10 voltage protection value" pbsAccess="rw" pbsChannel="10" unit="V" divider="100" tol="2" />
+      <Command code="00A1" pbsName="Channel 10 state" pbsAccess="rw" pbsChannel="10" divider="1" tol="0" />
+      <Command code="00B2" pbsName="Channel 11 current setting" pbsAccess="rw" pbsChannel="11" unit="mA" divider="10" tol="1" />
+      <Command code="00B3" pbsName="Channel 11 current maximum setting" pbsAccess="rw" pbsChannel="11" unit="mA" divider="10" tol="1" />
+      <Command code="00B4" pbsName="Channel 11 current maximum limit" pbsAccess="r" pbsChannel="11" unit="mA" divider="10" tol="1" />
+      <Command code="00B5" pbsName="Channel 11 measured current" pbsAccess="r" pbsChannel="11" unit="mA" divider="10" tol="1" />
+      <Command code="00B6" pbsName="Channel 11 current protection value" pbsAccess="rw" pbsChannel="11" unit="mA" divider="10" tol="1" />
+      <Command code="00B7" pbsName="Channel 11 voltage setting" pbsAccess="rw" pbsChannel="11" unit="V" divider="100" tol="2" />
+      <Command code="00B8" pbsName="Channel 11 voltage maximum setting" pbsAccess="rw" pbsChannel="11" unit="V" divider="100" tol="2" />
+      <Command code="00B9" pbsName="Channel 11 voltage maximum limit" pbsAccess="r" pbsChannel="11" unit="V" divider="100" tol="2" />
+      <Command code="00BA" pbsName="Channel 11 measured voltage" pbsAccess="r" pbsChannel="11" unit="V" divider="100" tol="2" />
+      <Command code="00BB" pbsName="Channel 11 voltage protection value" pbsAccess="rw" pbsChannel="11" unit="V" divider="100" tol="2" />
+      <Command code="00B1" pbsName="Channel 11 state" pbsAccess="rw" pbsChannel="11" divider="1" tol="0" />
+      <Command code="00C2" pbsName="Channel 12 current setting" pbsAccess="rw" pbsChannel="12" unit="mA" divider="10" tol="1" />
+      <Command code="00C3" pbsName="Channel 12 current maximum setting" pbsAccess="rw" pbsChannel="12" unit="mA" divider="10" tol="1" />
+      <Command code="00C4" pbsName="Channel 12 current maximum limit" pbsAccess="r" pbsChannel="12" unit="mA" divider="10" tol="1" />
+      <Command code="00C5" pbsName="Channel 12 measured current" pbsAccess="r" pbsChannel="12" unit="mA" divider="10" tol="1" />
+      <Command code="00C6" pbsName="Channel 12 current protection value" pbsAccess="rw" pbsChannel="12" unit="mA" divider="10" tol="1" />
+      <Command code="00C7" pbsName="Channel 12 voltage setting" pbsAccess="rw" pbsChannel="12" unit="V" divider="100" tol="2" />
+      <Command code="00C8" pbsName="Channel 12 voltage maximum setting" pbsAccess="rw" pbsChannel="12" unit="V" divider="100" tol="2" />
+      <Command code="00C9" pbsName="Channel 12 voltage maximum limit" pbsAccess="r" pbsChannel="12" unit="V" divider="100" tol="2" />
+      <Command code="00CA" pbsName="Channel 12 measured voltage" pbsAccess="r" pbsChannel="12" unit="V" divider="100" tol="2" />
+      <Command code="00CB" pbsName="Channel 12 voltage protection value" pbsAccess="rw" pbsChannel="12" unit="V" divider="100" tol="2" />
+      <Command code="00C1" pbsName="Channel 12 state" pbsAccess="rw" pbsChannel="12" divider="1" tol="0" />
+      <Command code="00D2" pbsName="Channel 13 current setting" pbsAccess="rw" pbsChannel="13" unit="mA" divider="10" tol="1" />
+      <Command code="00D3" pbsName="Channel 13 current maximum setting" pbsAccess="rw" pbsChannel="13" unit="mA" divider="10" tol="1" />
+      <Command code="00D4" pbsName="Channel 13 current maximum limit" pbsAccess="r" pbsChannel="13" unit="mA" divider="10" tol="1" />
+      <Command code="00D5" pbsName="Channel 13 measured current" pbsAccess="r" pbsChannel="13" unit="mA" divider="10" tol="1" />
+      <Command code="00D6" pbsName="Channel 13 current protection value" pbsAccess="rw" pbsChannel="13" unit="mA" divider="10" tol="1" />
+      <Command code="00D7" pbsName="Channel 13 voltage setting" pbsAccess="rw" pbsChannel="13" unit="V" divider="100" tol="2" />
+      <Command code="00D8" pbsName="Channel 13 voltage maximum setting" pbsAccess="rw" pbsChannel="13" unit="V" divider="100" tol="2" />
+      <Command code="00D9" pbsName="Channel 13 voltage maximum limit" pbsAccess="r" pbsChannel="13" unit="V" divider="100" tol="2" />
+      <Command code="00DA" pbsName="Channel 13 measured voltage" pbsAccess="r" pbsChannel="13" unit="V" divider="100" tol="2" />
+      <Command code="00DB" pbsName="Channel 13 voltage protection value" pbsAccess="rw" pbsChannel="13" unit="V" divider="100" tol="2" />
+      <Command code="00D1" pbsName="Channel 13 state" pbsAccess="rw" pbsChannel="13" divider="1" tol="0" />
+      <Command code="00E2" pbsName="Channel 14 current setting" pbsAccess="rw" pbsChannel="14" unit="mA" divider="10" tol="1" />
+      <Command code="00E3" pbsName="Channel 14 current maximum setting" pbsAccess="rw" pbsChannel="14" unit="mA" divider="10" tol="1" />
+      <Command code="00E4" pbsName="Channel 14 current maximum limit" pbsAccess="r" pbsChannel="14" unit="mA" divider="10" tol="1" />
+      <Command code="00E5" pbsName="Channel 14 measured current" pbsAccess="r" pbsChannel="14" unit="mA" divider="10" tol="1" />
+      <Command code="00E6" pbsName="Channel 14 current protection value" pbsAccess="rw" pbsChannel="14" unit="mA" divider="10" tol="1" />
+      <Command code="00E7" pbsName="Channel 14 voltage setting" pbsAccess="rw" pbsChannel="14" unit="V" divider="100" tol="2" />
+      <Command code="00E8" pbsName="Channel 14 voltage maximum setting" pbsAccess="rw" pbsChannel="14" unit="V" divider="100" tol="2" />
+      <Command code="00E9" pbsName="Channel 14 voltage maximum limit" pbsAccess="r" pbsChannel="14" unit="V" divider="100" tol="2" />
+      <Command code="00EA" pbsName="Channel 14 measured voltage" pbsAccess="r" pbsChannel="14" unit="V" divider="100" tol="2" />
+      <Command code="00EB" pbsName="Channel 14 voltage protection value" pbsAccess="rw" pbsChannel="14" unit="V" divider="100" tol="2" />
+      <Command code="00E1" pbsName="Channel 14 state" pbsAccess="rw" pbsChannel="14" divider="1" tol="0" />
+      <Command code="00F2" pbsName="Channel 15 current setting" pbsAccess="rw" pbsChannel="15" unit="mA" divider="10" tol="1" />
+      <Command code="00F3" pbsName="Channel 15 current maximum setting" pbsAccess="rw" pbsChannel="15" unit="mA" divider="10" tol="1" />
+      <Command code="00F4" pbsName="Channel 15 current maximum limit" pbsAccess="r" pbsChannel="15" unit="mA" divider="10" tol="1" />
+      <Command code="00F5" pbsName="Channel 15 measured current" pbsAccess="r" pbsChannel="15" unit="mA" divider="10" tol="1" />
+      <Command code="00F6" pbsName="Channel 15 current protection value" pbsAccess="rw" pbsChannel="15" unit="mA" divider="10" tol="1" />
+      <Command code="00F7" pbsName="Channel 15 voltage setting" pbsAccess="rw" pbsChannel="15" unit="V" divider="100" tol="2" />
+      <Command code="00F8" pbsName="Channel 15 voltage maximum setting" pbsAccess="rw" pbsChannel="15" unit="V" divider="100" tol="2" />
+      <Command code="00F9" pbsName="Channel 15 voltage maximum limit" pbsAccess="r" pbsChannel="15" unit="V" divider="100" tol="2" />
+      <Command code="00FA" pbsName="Channel 15 measured voltage" pbsAccess="r" pbsChannel="15" unit="V" divider="100" tol="2" />
+      <Command code="00FB" pbsName="Channel 15 voltage protection value" pbsAccess="rw" pbsChannel="15" unit="V" divider="100" tol="2" />
+      <Command code="00F1" pbsName="Channel 15 state" pbsAccess="rw" pbsChannel="15" divider="1" tol="0" />
+      <Command code="0102" pbsName="Channel 16 current setting" pbsAccess="rw" pbsChannel="16" unit="mA" divider="10" tol="1" />
+      <Command code="0103" pbsName="Channel 16 current maximum setting" pbsAccess="rw" pbsChannel="16" unit="mA" divider="10" tol="1" />
+      <Command code="0104" pbsName="Channel 16 current maximum limit" pbsAccess="r" pbsChannel="16" unit="mA" divider="10" tol="1" />
+      <Command code="0105" pbsName="Channel 16 measured current" pbsAccess="r" pbsChannel="16" unit="mA" divider="10" tol="1" />
+      <Command code="0106" pbsName="Channel 16 current protection value" pbsAccess="rw" pbsChannel="16" unit="mA" divider="10" tol="1" />
+      <Command code="0107" pbsName="Channel 16 voltage setting" pbsAccess="rw" pbsChannel="16" unit="V" divider="100" tol="2" />
+      <Command code="0108" pbsName="Channel 16 voltage maximum setting" pbsAccess="rw" pbsChannel="16" unit="V" divider="100" tol="2" />
+      <Command code="0109" pbsName="Channel 16 voltage maximum limit" pbsAccess="r" pbsChannel="16" unit="V" divider="100" tol="2" />
+      <Command code="010A" pbsName="Channel 16 measured voltage" pbsAccess="r" pbsChannel="16" unit="V" divider="100" tol="2" />
+      <Command code="010B" pbsName="Channel 16 voltage protection value" pbsAccess="rw" pbsChannel="16" unit="V" divider="100" tol="2" />
+      <Command code="0101" pbsName="Channel 16 state" pbsAccess="rw" pbsChannel="16" divider="1" tol="0" />
+    </Commands>
+  </Device>
+</DB>

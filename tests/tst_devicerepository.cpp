@@ -4,9 +4,8 @@
 #include <QtTest>
 
 namespace {
-// USB identifiers/access/units: v1.1.0 pp16-17,23; not a complete register table.
-DeviceConfiguration configuration(PICModel model) {
-    DeviceConfiguration result(model);
+DeviceConfiguration configuration(quint16 modelId, const QString& name, int channels) {
+    DeviceConfiguration result(modelId, name, channels);
     const auto add = [&](quint16 id, const ParameterDefinition& definition) {
         if (!result.addParameter(id, definition)) qFatal("Invalid configuration fixture");
     };
@@ -16,7 +15,7 @@ DeviceConfiguration configuration(PICModel model) {
     add(0x0015, {QStringLiteral("Channel 1 measured current"), quint8(1), QStringLiteral("mA"), 0.1, ParameterAccess::ReadOnly});
     add(0x001A, {QStringLiteral("Channel 1 measured voltage"), quint8(1), QStringLiteral("V"), 0.01, ParameterAccess::ReadOnly});
     add(0x0408, {QStringLiteral("Measured input voltage"), std::nullopt, QStringLiteral("V"), 0.1, ParameterAccess::ReadOnly});
-    if (model == PICModel::PIC16)
+    if (channels >= 16)
         add(0x010A, {QStringLiteral("Channel 16 measured voltage"), quint8(16), QStringLiteral("V"), 0.01, ParameterAccess::ReadOnly});
     return result;
 }
@@ -44,21 +43,23 @@ private slots:
 };
 
 void DeviceRepositoryTests::models_data() {
-    QTest::addColumn<int>("model"); QTest::addColumn<int>("channels");
-    QTest::newRow("PIC-8") << int(PICModel::PIC8) << 8;
-    QTest::newRow("PIC-16") << int(PICModel::PIC16) << 16;
+    QTest::addColumn<quint16>("id"); QTest::addColumn<QString>("name"); QTest::addColumn<int>("channels");
+    QTest::newRow("PIC-8") << quint16(0x1700) << QStringLiteral("PIC-8") << 8;
+    QTest::newRow("PIC-16") << quint16(0x1701) << QStringLiteral("PIC-16") << 16;
+    QTest::newRow("generic") << quint16(0x2222) << QStringLiteral("Third model") << 3;
 }
 
 void DeviceRepositoryTests::models() {
-    QFETCH(int, model); QFETCH(int, channels);
-    DeviceRepository repository(configuration(PICModel(model)));
-    QCOMPARE(repository.configuration().model(), PICModel(model));
+    QFETCH(quint16, id); QFETCH(QString, name); QFETCH(int, channels);
+    DeviceRepository repository(configuration(id, name, channels));
+    QCOMPARE(repository.configuration().modelId(), id);
+    QCOMPARE(repository.configuration().modelName(), name);
     QCOMPARE(repository.configuration().channelCount(), channels);
-    QCOMPARE(repository.configuration().parameters().contains(0x010A), channels == 16);
+    QCOMPARE(repository.configuration().parameters().contains(0x010A), channels >= 16);
 }
 
 void DeviceRepositoryTests::representativeDefinitions() {
-    const auto config = configuration(PICModel::PIC8);
+    const auto config = configuration(0x1700, QStringLiteral("PIC-8"), 8);
     const auto setting = config.parameters().value(0x0017);
     QCOMPARE(setting.name, QStringLiteral("Channel 1 voltage setting"));
     QCOMPARE(setting.channel.value(), quint8(1)); QCOMPARE(setting.unit, QStringLiteral("V"));
@@ -78,7 +79,7 @@ void DeviceRepositoryTests::representativeDefinitions() {
 }
 
 void DeviceRepositoryTests::valuesInitiallyUnknown() {
-    DeviceRepository repository(configuration(PICModel::PIC8));
+    DeviceRepository repository(configuration(0x1700, QStringLiteral("PIC-8"), 8));
     QCOMPARE(repository.configuration().parameters().size(), 5);
     for (auto it = repository.configuration().parameters().cbegin(); it != repository.configuration().parameters().cend(); ++it)
         QVERIFY(!repository.value(it.key()).has_value());
@@ -92,14 +93,14 @@ void DeviceRepositoryTests::updateAndRetrieve_data() {
 }
 
 void DeviceRepositoryTests::updateAndRetrieve() {
-    QFETCH(quint16, raw); DeviceRepository repository(configuration(PICModel::PIC8));
+    QFETCH(quint16, raw); DeviceRepository repository(configuration(0x1700, QStringLiteral("PIC-8"), 8));
     QVERIFY(!repository.value(0x0017).has_value());
     QVERIFY(repository.update(0x0017, raw));
     QVERIFY(repository.value(0x0017).has_value()); QCOMPARE(repository.value(0x0017).value(), raw);
 }
 
 void DeviceRepositoryTests::independentParameters() {
-    DeviceRepository repository(configuration(PICModel::PIC8));
+    DeviceRepository repository(configuration(0x1700, QStringLiteral("PIC-8"), 8));
     QVERIFY(repository.update(0x0017, 900)); QVERIFY(repository.update(0x0021, 0x000C));
     QCOMPARE(repository.value(0x0017).value(), quint16(900)); QCOMPARE(repository.value(0x0021).value(), quint16(12));
     QVERIFY(repository.update(0x0017, 356));
@@ -107,7 +108,7 @@ void DeviceRepositoryTests::independentParameters() {
 }
 
 void DeviceRepositoryTests::undefinedParameterRejected() {
-    DeviceRepository repository(configuration(PICModel::PIC8));
+    DeviceRepository repository(configuration(0x1700, QStringLiteral("PIC-8"), 8));
     QVERIFY(repository.update(0x0017, 356));
     QVERIFY(!repository.update(0xBEEF, 1)); QVERIFY(!repository.value(0xBEEF).has_value());
     QVERIFY(!repository.configuration().parameters().contains(0xBEEF));
@@ -115,11 +116,11 @@ void DeviceRepositoryTests::undefinedParameterRejected() {
 }
 
 void DeviceRepositoryTests::clearPreservesConfiguration() {
-    DeviceRepository repository(configuration(PICModel::PIC16));
+    DeviceRepository repository(configuration(0x1701, QStringLiteral("PIC-16"), 16));
     QVERIFY(repository.update(0x0017, 356)); QVERIFY(repository.update(0x010A, 0));
     repository.clear(); repository.clear();
     QVERIFY(!repository.value(0x0017).has_value()); QVERIFY(!repository.value(0x010A).has_value());
-    QCOMPARE(repository.configuration().model(), PICModel::PIC16);
+    QCOMPARE(repository.configuration().modelId(), quint16(0x1701));
     QCOMPARE(repository.configuration().channelCount(), 16); QCOMPARE(repository.configuration().parameters().size(), 6);
     const auto definition = repository.configuration().parameters().value(0x010A);
     QCOMPARE(definition.name, QStringLiteral("Channel 16 measured voltage"));
@@ -129,7 +130,7 @@ void DeviceRepositoryTests::clearPreservesConfiguration() {
 }
 
 void DeviceRepositoryTests::independentRepositories() {
-    DeviceRepository pic8(configuration(PICModel::PIC8)), pic16(configuration(PICModel::PIC16));
+    DeviceRepository pic8(configuration(0x1700, QStringLiteral("PIC-8"), 8)), pic16(configuration(0x1701, QStringLiteral("PIC-16"), 16));
     QVERIFY(pic8.update(0x0017, 356)); QVERIFY(!pic16.value(0x0017).has_value());
     QVERIFY(pic16.update(0x0017, 0)); QCOMPARE(pic8.value(0x0017).value(), quint16(356));
     QCOMPARE(pic16.value(0x0017).value(), quint16(0));
@@ -140,23 +141,23 @@ void DeviceRepositoryTests::independentRepositories() {
 
 void DeviceRepositoryTests::configurationSnapshotLifetime() {
     const auto makeRepository = [] {
-        auto original = configuration(PICModel::PIC8);
+        auto original = configuration(0x1700, QStringLiteral("PIC-8"), 8);
         DeviceRepository repository(original);
         const ParameterDefinition extra{QStringLiteral("Channel 2 measured voltage"), quint8(2), QStringLiteral("V"), 0.01, ParameterAccess::ReadOnly};
         if (!original.addParameter(0x002A, extra)) qFatal("Invalid snapshot fixture");
         return repository;
     };
-    auto repository = makeRepository(); // Source was modified, then destroyed.
+    auto repository = makeRepository();
     QCOMPARE(repository.configuration().parameters().size(), 5);
     QVERIFY(!repository.configuration().parameters().contains(0x002A));
     QVERIFY(!repository.update(0x002A, 123));
     QVERIFY(repository.update(0x0017, 356)); QCOMPARE(repository.value(0x0017).value(), quint16(356));
-    DeviceRepository temporary(configuration(PICModel::PIC16));
+    DeviceRepository temporary(configuration(0x1701, QStringLiteral("PIC-16"), 16));
     QCOMPARE(temporary.configuration().parameters().value(0x010A).channel.value(), quint8(16));
 }
 
 void DeviceRepositoryTests::duplicateDefinitionsRejected() {
-    DeviceConfiguration config(PICModel::PIC8);
+    DeviceConfiguration config(0x1700, QStringLiteral("PIC-8"), 8);
     const ParameterDefinition first{QStringLiteral("Channel 1 voltage setting"), quint8(1), QStringLiteral("V"), 0.01, ParameterAccess::ReadWrite};
     QVERIFY(config.addParameter(0x0017, first));
     auto replacement = first; replacement.name = QStringLiteral("Replacement");
@@ -166,17 +167,17 @@ void DeviceRepositoryTests::duplicateDefinitionsRejected() {
 
 void DeviceRepositoryTests::channelAssociations() {
     const ParameterDefinition channel16{QStringLiteral("Channel 16 measured voltage"), quint8(16), QStringLiteral("V"), 0.01, ParameterAccess::ReadOnly};
-    DeviceConfiguration pic8(PICModel::PIC8), pic16(PICModel::PIC16);
+    DeviceConfiguration pic8(0x1700, QStringLiteral("PIC-8"), 8), pic16(0x1701, QStringLiteral("PIC-16"), 16);
     QVERIFY(!pic8.addParameter(0x010A, channel16)); QVERIFY(pic8.parameters().isEmpty());
     QVERIFY(pic16.addParameter(0x010A, channel16));
     auto invalid = channel16; invalid.channel = quint8(17);
-    DeviceConfiguration invalidConfig(PICModel::PIC16);
+    DeviceConfiguration invalidConfig(0x1701, QStringLiteral("PIC-16"), 16);
     QVERIFY(!invalidConfig.addParameter(0x010A, invalid)); QVERIFY(invalidConfig.parameters().isEmpty());
     QVERIFY(pic8.addParameter(0x0001, {QStringLiteral("Channel zero state"), quint8(0), {}, 1.0, ParameterAccess::ReadWrite}));
 }
 
 void DeviceRepositoryTests::readOnlyValuesStayRaw() {
-    DeviceRepository repository(configuration(PICModel::PIC8));
+    DeviceRepository repository(configuration(0x1700, QStringLiteral("PIC-8"), 8));
     QCOMPARE(repository.configuration().parameters().value(0x001A).access, ParameterAccess::ReadOnly);
     QVERIFY(repository.update(0x001A, 356)); QCOMPARE(repository.value(0x001A).value(), quint16(356));
     QCOMPARE(repository.configuration().parameters().value(0x001A).scale, 0.01);
@@ -185,13 +186,13 @@ void DeviceRepositoryTests::readOnlyValuesStayRaw() {
 void DeviceRepositoryTests::decodedValueCompatibility() {
     const auto response = PICTextProtocol::decode("K0017 0164\r");
     QCOMPARE(response.kind, PICTextProtocol::Kind::ParameterValue);
-    DeviceRepository repository(configuration(PICModel::PIC8));
+    DeviceRepository repository(configuration(0x1700, QStringLiteral("PIC-8"), 8));
     QVERIFY(repository.update(response.parameter, response.value));
     QCOMPARE(repository.value(0x0017).value(), quint16(356));
 }
 
 void DeviceRepositoryTests::emptyConfiguration() {
-    DeviceRepository repository(DeviceConfiguration{PICModel::PIC8});
+    DeviceRepository repository(DeviceConfiguration{0x1700, QStringLiteral("PIC-8"), 8});
     QVERIFY(repository.configuration().parameters().isEmpty());
     QVERIFY(!repository.update(0x0017, 0)); QVERIFY(!repository.value(0x0017).has_value()); repository.clear();
 }

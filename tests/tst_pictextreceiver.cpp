@@ -8,8 +8,8 @@
 #include <cstring>
 #include <memory>
 
-using PICTextProtocol::Kind;
-using PICTextProtocol::Response;
+using Kind = PICTextProtocol::Kind;
+using Response = PICTextProtocol::Response;
 
 namespace {
 // Adapted from the existing DataThread fake-provider/device fixture.

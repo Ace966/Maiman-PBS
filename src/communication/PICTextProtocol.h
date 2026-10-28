@@ -2,32 +2,33 @@
 
 #include <QByteArray>
 #include <QList>
+#include <QMetaType>
 #include <QtGlobal>
 
-namespace PICTextProtocol {
-
-enum class Kind { ParameterValue, DeviceError, NonexistentParameter, Malformed };
-
-struct Response {
-    Kind kind{Kind::Malformed};
-    quint16 parameter{0}; // ParameterValue or NonexistentParameter only.
-    quint16 value{0};
-    quint16 errorCode{0}; // DeviceError only; unknown codes are preserved.
-};
-
-QByteArray encodeRead(quint16 parameter);
-QByteArray encodeWrite(quint16 parameter, quint16 value);
-
-// Exactly one CR-terminated standard frame. No buffering or request correlation.
-// Hex fields accept ASCII 0-9/A-F/a-f; prefixes are the documented uppercase bytes.
-Response decode(const QByteArray& frame);
-
-// One standard-mode stream; use sequentially. Payload validation stays in decode.
-class FrameAssembler {
+// One standard-mode stream; sequential access by its owner. No transport or
+// request tracking. Encode/decode can also be used without a stream instance.
+class PICTextProtocol {
 public:
+
+    enum class Kind { ParameterValue, DeviceError, NonexistentParameter, Malformed };
+
+    struct Response {
+        Kind kind{Kind::Malformed};
+        quint16 parameter{0}; // ParameterValue or NonexistentParameter only.
+        quint16 value{0};
+        quint16 errorCode{0}; // DeviceError only; unknown codes are preserved.
+    };
+
+    static QByteArray encodeRead(quint16 parameter);
+    static QByteArray encodeWrite(quint16 parameter, quint16 value);
+
+    // Exactly one CR-terminated standard frame. No buffering or request correlation.
+    // Hex fields accept ASCII 0-9/A-F/a-f; prefixes are the documented uppercase bytes.
+    static Response decode(const QByteArray& frame);
+
     static constexpr qsizetype MaximumFrameBytes = 11; // Includes terminating CR.
     struct Result {
-        QList<QByteArray> frames;
+        QList<Response> responses; // One decoded result per bounded CR frame, in order.
         qsizetype discardedFrames{0}; // Newly detected oversized frames in this call.
     };
 
@@ -35,8 +36,10 @@ public:
     void reset(); // Clears incomplete data and discard-until-CR state.
 
 private:
+    static QByteArray hexField(quint16 value);
+    static bool parseHex(const QByteArray& frame, qsizetype offset, quint16& value);
     QByteArray m_pending;
     bool m_discarding{false};
 };
 
-} // namespace PICTextProtocol
+Q_DECLARE_METATYPE(PICTextProtocol::Response)

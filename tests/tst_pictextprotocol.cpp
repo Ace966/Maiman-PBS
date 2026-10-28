@@ -2,8 +2,24 @@
 
 #include <QtTest>
 
-using PICTextProtocol::Kind;
-using PICTextProtocol::FrameAssembler;
+using Kind = PICTextProtocol::Kind;
+using Response = PICTextProtocol::Response;
+
+namespace {
+Response parameterResponse(quint16 parameter, quint16 value) {
+    return {Kind::ParameterValue, parameter, value};
+}
+Response errorResponse(quint16 code) { return {Kind::DeviceError, 0, 0, code}; }
+void compareResponses(const QList<Response>& actual, const QList<Response>& expected) {
+    QCOMPARE(actual.size(), expected.size());
+    for (qsizetype i = 0; i < expected.size(); ++i) {
+        QCOMPARE(actual[i].kind, expected[i].kind);
+        QCOMPARE(actual[i].parameter, expected[i].parameter);
+        QCOMPARE(actual[i].value, expected[i].value);
+        QCOMPARE(actual[i].errorCode, expected[i].errorCode);
+    }
+}
+}
 
 class PICTextProtocolTests : public QObject {
     Q_OBJECT
@@ -32,6 +48,7 @@ private slots:
     void rawPayload();
     void largeDiscardedInput();
     void chunkBoundaryIndependence();
+    void independentInstances();
 };
 
 void PICTextProtocolTests::encodeRead_data() {
@@ -156,133 +173,124 @@ void PICTextProtocolTests::malformed() {
 }
 
 void PICTextProtocolTests::completeFrame_data() {
-    QTest::addColumn<QByteArray>("frame");
-    QTest::newRow("K-exactly-11-bytes") << QByteArray("K0017 0164\r");
-    QTest::newRow("E-six-bytes") << QByteArray("E0001\r");
+    QTest::addColumn<QByteArray>("frame"); QTest::addColumn<Response>("expected");
+    QTest::newRow("K-exactly-11-bytes") << QByteArray("K0017 0164\r") << parameterResponse(0x0017, 356);
+    QTest::newRow("E-six-bytes") << QByteArray("E0001\r") << errorResponse(1);
 }
 
 void PICTextProtocolTests::completeFrame() {
-    QFETCH(QByteArray, frame);
-    FrameAssembler assembler;
-    const auto result = assembler.append(frame);
-    QCOMPARE(result.frames, QList<QByteArray>{frame});
+    QFETCH(QByteArray, frame); QFETCH(Response, expected);
+    PICTextProtocol protocol;
+    const auto result = protocol.append(frame);
+    compareResponses(result.responses, {expected});
     QCOMPARE(result.discardedFrames, qsizetype(0));
-    QVERIFY(PICTextProtocol::decode(result.frames[0]).kind != Kind::Malformed);
 }
 
 void PICTextProtocolTests::splitFrame() {
     const QByteArray frame("K0017 0164\r");
     for (qsizetype split = 1; split < frame.size(); ++split) {
-        FrameAssembler assembler;
-        const auto first = assembler.append(frame.first(split));
-        QVERIFY(first.frames.isEmpty()); QCOMPARE(first.discardedFrames, qsizetype(0));
-        const auto last = assembler.append(frame.sliced(split));
-        QCOMPARE(last.frames, QList<QByteArray>{frame});
+        PICTextProtocol protocol;
+        const auto first = protocol.append(frame.first(split));
+        QVERIFY(first.responses.isEmpty()); QCOMPARE(first.discardedFrames, qsizetype(0));
+        const auto last = protocol.append(frame.sliced(split));
+        compareResponses(last.responses, {parameterResponse(0x0017, 356)});
         QCOMPARE(last.discardedFrames, qsizetype(0));
     }
-    FrameAssembler assembler;
-    QList<QByteArray> frames;
+    PICTextProtocol protocol;
+    QList<Response> responses;
     for (char byte : frame) {
-        const auto result = assembler.append(QByteArray(1, byte));
-        frames += result.frames;
+        const auto result = protocol.append(QByteArray(1, byte));
+        responses += result.responses;
         QCOMPARE(result.discardedFrames, qsizetype(0));
     }
-    QCOMPARE(frames, QList<QByteArray>{frame});
+    compareResponses(responses, {parameterResponse(0x0017, 356)});
 }
 
 void PICTextProtocolTests::multipleFramesOneChunk() {
-    FrameAssembler assembler;
-    const QList<QByteArray> expected{"K0017 0164\r", "E0002\r", "K0000 0000\r"};
-    const auto result = assembler.append("K0017 0164\rE0002\rK0000 0000\r");
-    QCOMPARE(result.frames, expected); QCOMPARE(result.discardedFrames, qsizetype(0));
-    const auto value = PICTextProtocol::decode(result.frames[0]);
-    QCOMPARE(value.kind, Kind::ParameterValue); QCOMPARE(value.parameter, quint16(0x0017));
-    QCOMPARE(value.value, quint16(356));
-    const auto error = PICTextProtocol::decode(result.frames[1]);
-    QCOMPARE(error.kind, Kind::DeviceError); QCOMPARE(error.errorCode, quint16(2));
-    QCOMPARE(PICTextProtocol::decode(result.frames[2]).kind, Kind::NonexistentParameter);
+    PICTextProtocol protocol;
+    const auto result = protocol.append("K0017 0164\rE0002\rK0000 0000\r");
+    compareResponses(result.responses, {parameterResponse(0x0017, 356), errorResponse(2), {Kind::NonexistentParameter}});
+    QCOMPARE(result.discardedFrames, qsizetype(0));
 }
 
 void PICTextProtocolTests::multipleChunks() {
-    FrameAssembler assembler;
-    const auto first = assembler.append("K0017");
-    QVERIFY(first.frames.isEmpty()); QCOMPARE(first.discardedFrames, qsizetype(0));
-    const auto second = assembler.append(" 0164\rK0021");
-    QCOMPARE(second.frames, QList<QByteArray>{"K0017 0164\r"});
-    const auto third = assembler.append(" 000C\r");
-    QCOMPARE(third.frames, QList<QByteArray>{"K0021 000C\r"});
+    PICTextProtocol protocol;
+    const auto first = protocol.append("K0017");
+    QVERIFY(first.responses.isEmpty()); QCOMPARE(first.discardedFrames, qsizetype(0));
+    const auto second = protocol.append(" 0164\rK0021");
+    compareResponses(second.responses, {parameterResponse(0x0017, 356)});
+    const auto third = protocol.append(" 000C\r");
+    compareResponses(third.responses, {parameterResponse(0x0021, 12)});
     QCOMPARE(second.discardedFrames + third.discardedFrames, qsizetype(0));
-    QCOMPARE(PICTextProtocol::decode(third.frames[0]).value, quint16(12));
 }
 
 void PICTextProtocolTests::emptyInput() {
-    FrameAssembler assembler;
-    auto result = assembler.append({});
-    QVERIFY(result.frames.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(0));
-    QVERIFY(assembler.append("E00").frames.isEmpty());
-    result = assembler.append({});
-    QVERIFY(result.frames.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(0));
-    QCOMPARE(assembler.append("01\r").frames, QList<QByteArray>{"E0001\r"});
+    PICTextProtocol protocol;
+    auto result = protocol.append({});
+    QVERIFY(result.responses.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(0));
+    QVERIFY(protocol.append("E00").responses.isEmpty());
+    result = protocol.append({});
+    QVERIFY(result.responses.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(0));
+    compareResponses(protocol.append("01\r").responses, {errorResponse(1)});
 }
 
 void PICTextProtocolTests::incompleteTrailingFrame() {
-    FrameAssembler assembler;
-    const auto first = assembler.append("K0017 0164\rE00");
-    QCOMPARE(first.frames, QList<QByteArray>{"K0017 0164\r"});
-    const auto next = assembler.append("01\r");
-    QCOMPARE(next.frames, QList<QByteArray>{"E0001\r"});
+    PICTextProtocol protocol;
+    const auto first = protocol.append("K0017 0164\rE00");
+    compareResponses(first.responses, {parameterResponse(0x0017, 356)});
+    const auto next = protocol.append("01\r");
+    compareResponses(next.responses, {errorResponse(1)});
     QCOMPARE(first.discardedFrames + next.discardedFrames, qsizetype(0));
 }
 
 void PICTextProtocolTests::resetIncompleteFrame() {
-    FrameAssembler assembler;
-    QVERIFY(assembler.append("K0017").frames.isEmpty());
-    assembler.reset(); assembler.reset();
-    const auto result = assembler.append("E0000\r");
-    QCOMPARE(result.frames, QList<QByteArray>{"E0000\r"});
+    PICTextProtocol protocol;
+    QVERIFY(protocol.append("K0017").responses.isEmpty());
+    protocol.reset(); protocol.reset();
+    const auto result = protocol.append("E0000\r");
+    compareResponses(result.responses, {errorResponse(0)});
     QCOMPARE(result.discardedFrames, qsizetype(0));
 }
 
 void PICTextProtocolTests::oversizedDiscardAndRecovery() {
-    FrameAssembler assembler;
-    auto result = assembler.append(QByteArray(11, 'x'));
-    QVERIFY(result.frames.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(0));
-    result = assembler.append("x"); // First byte beyond the total 11-byte limit.
-    QVERIFY(result.frames.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(1));
-    result = assembler.append({});
-    QVERIFY(result.frames.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(0));
-    result = assembler.append("K0017 0164"); // Must not retain a valid-looking discarded tail.
-    QVERIFY(result.frames.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(0));
-    result = assembler.append("\rE0001\r");
-    QCOMPARE(result.frames, QList<QByteArray>{"E0001\r"});
+    PICTextProtocol protocol;
+    auto result = protocol.append(QByteArray(11, 'x'));
+    QVERIFY(result.responses.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(0));
+    result = protocol.append("x");
+    QVERIFY(result.responses.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(1));
+    result = protocol.append({});
+    QVERIFY(result.responses.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(0));
+    result = protocol.append("K0017 0164"); // Do not parse valid-looking discarded tails.
+    QVERIFY(result.responses.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(0));
+    result = protocol.append("\rE0001\r");
+    compareResponses(result.responses, {errorResponse(1)});
     QCOMPARE(result.discardedFrames, qsizetype(0));
 }
 
 void PICTextProtocolTests::oversizedSameChunk_data() {
-    QTest::addColumn<QByteArray>("input");
-    QTest::addColumn<qsizetype>("discarded");
-    QTest::addColumn<QList<QByteArray>>("expected");
+    QTest::addColumn<QByteArray>("input"); QTest::addColumn<qsizetype>("discarded");
+    QTest::addColumn<QList<Response>>("expected");
     QTest::newRow("twelfth-byte-is-CR") << (QByteArray(11, 'x') + "\rE0001\r") << qsizetype(1)
-        << QList<QByteArray>{"E0001\r"};
+        << QList<Response>{errorResponse(1)};
     QTest::newRow("discard-until-CR") << (QByteArray(12, 'x') + "\rK0017 0164\r") << qsizetype(1)
-        << QList<QByteArray>{"K0017 0164\r"};
+        << QList<Response>{parameterResponse(0x0017, 356)};
     QTest::newRow("two-discarded-frames") << (QByteArray(12, 'x') + "\rE0000\r" + QByteArray(20, 'y') + "\rE0002\r")
-        << qsizetype(2) << QList<QByteArray>{"E0000\r", "E0002\r"};
+        << qsizetype(2) << QList<Response>{errorResponse(0), errorResponse(2)};
 }
 
 void PICTextProtocolTests::oversizedSameChunk() {
-    QFETCH(QByteArray, input); QFETCH(qsizetype, discarded); QFETCH(QList<QByteArray>, expected);
-    FrameAssembler assembler;
-    const auto result = assembler.append(input);
-    QCOMPARE(result.frames, expected); QCOMPARE(result.discardedFrames, discarded);
+    QFETCH(QByteArray, input); QFETCH(qsizetype, discarded); QFETCH(QList<Response>, expected);
+    PICTextProtocol protocol;
+    const auto result = protocol.append(input);
+    compareResponses(result.responses, expected); QCOMPARE(result.discardedFrames, discarded);
 }
 
 void PICTextProtocolTests::resetDiscardState() {
-    FrameAssembler assembler;
-    QCOMPARE(assembler.append(QByteArray(12, 'x')).discardedFrames, qsizetype(1));
-    assembler.reset(); // A new stream need not finish the old oversized frame.
-    const auto result = assembler.append("K0021 000C\r");
-    QCOMPARE(result.frames, QList<QByteArray>{"K0021 000C\r"});
+    PICTextProtocol protocol;
+    QCOMPARE(protocol.append(QByteArray(12, 'x')).discardedFrames, qsizetype(1));
+    protocol.reset();
+    const auto result = protocol.append("K0021 000C\r");
+    compareResponses(result.responses, {parameterResponse(0x0021, 12)});
     QCOMPARE(result.discardedFrames, qsizetype(0));
 }
 
@@ -295,35 +303,47 @@ void PICTextProtocolTests::rawPayload_data() {
 
 void PICTextProtocolTests::rawPayload() {
     QFETCH(QByteArray, frame);
-    FrameAssembler assembler;
-    const auto result = assembler.append(frame);
-    QCOMPARE(result.frames, QList<QByteArray>{frame});
+    PICTextProtocol protocol;
+    const auto result = protocol.append(frame);
+    compareResponses(result.responses, {{Kind::Malformed}});
     QCOMPARE(result.discardedFrames, qsizetype(0));
-    QCOMPARE(PICTextProtocol::decode(result.frames[0]).kind, Kind::Malformed);
 }
 
 void PICTextProtocolTests::largeDiscardedInput() {
-    FrameAssembler assembler;
-    auto result = assembler.append(QByteArray(1024 * 1024, 'x'));
-    QVERIFY(result.frames.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(1));
-    result = assembler.append(QByteArray(1024 * 1024, 'y'));
-    QVERIFY(result.frames.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(0));
-    result = assembler.append("\rE0001\r");
-    QCOMPARE(result.frames, QList<QByteArray>{"E0001\r"});
+    PICTextProtocol protocol;
+    auto result = protocol.append(QByteArray(1024 * 1024, 'x'));
+    QVERIFY(result.responses.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(1));
+    result = protocol.append(QByteArray(1024 * 1024, 'y'));
+    QVERIFY(result.responses.isEmpty()); QCOMPARE(result.discardedFrames, qsizetype(0));
+    result = protocol.append("\rE0001\r");
+    compareResponses(result.responses, {errorResponse(1)});
     QCOMPARE(result.discardedFrames, qsizetype(0));
 }
 
 void PICTextProtocolTests::chunkBoundaryIndependence() {
     const QByteArray stream = QByteArray("K0017 0164\r") + QByteArray(15, 'x') + "\rE0001\rE0";
-    const QList<QByteArray> expected{"K0017 0164\r", "E0001\r"};
+    const QList<Response> expected{parameterResponse(0x0017, 356), errorResponse(1)};
     for (qsizetype split = 0; split <= stream.size(); ++split) {
-        FrameAssembler assembler;
-        const auto first = assembler.append(stream.first(split));
-        const auto second = assembler.append(stream.sliced(split));
-        QCOMPARE(first.frames + second.frames, expected);
+        PICTextProtocol protocol;
+        const auto first = protocol.append(stream.first(split));
+        const auto second = protocol.append(stream.sliced(split));
+        compareResponses(first.responses + second.responses, expected);
         QCOMPARE(first.discardedFrames + second.discardedFrames, qsizetype(1));
-        QCOMPARE(assembler.append("002\r").frames, QList<QByteArray>{"E0002\r"});
+        compareResponses(protocol.append("002\r").responses, {errorResponse(2)});
     }
+}
+
+void PICTextProtocolTests::independentInstances() {
+    PICTextProtocol first, second;
+    QVERIFY(first.append("K0017").responses.isEmpty());
+    compareResponses(second.append("Effff\r").responses, {errorResponse(0xffff)});
+    compareResponses(first.append(" 0164\r").responses, {parameterResponse(0x0017, 356)});
+    QCOMPARE(first.append(QByteArray(12, 'x')).discardedFrames, qsizetype(1));
+    compareResponses(second.append("KFFFF FFFF\r").responses, {parameterResponse(0xffff, 0xffff)});
+    QVERIFY(second.append("E00").responses.isEmpty());
+    first.reset();
+    compareResponses(first.append("E0001\r").responses, {errorResponse(1)});
+    compareResponses(second.append("02\r").responses, {errorResponse(2)});
 }
 
 QTEST_GUILESS_MAIN(PICTextProtocolTests)

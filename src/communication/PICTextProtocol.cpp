@@ -1,12 +1,11 @@
 #include "PICTextProtocol.h"
 
-namespace {
-QByteArray hexField(quint16 value) {
+QByteArray PICTextProtocol::hexField(quint16 value) {
     return QByteArray::number(value, 16).rightJustified(4, '0').toUpper();
 }
 
 // Called only after frame length/field positions have been checked.
-bool parseHex(const QByteArray& frame, qsizetype offset, quint16& value) {
+bool PICTextProtocol::parseHex(const QByteArray& frame, qsizetype offset, quint16& value) {
     value = 0;
     for (qsizetype i = offset; i < offset + 4; ++i) {
         const char byte = frame[i];
@@ -19,19 +18,15 @@ bool parseHex(const QByteArray& frame, qsizetype offset, quint16& value) {
     }
     return true;
 }
-} // namespace
-
-namespace PICTextProtocol {
-
-QByteArray encodeRead(quint16 parameter) {
+QByteArray PICTextProtocol::encodeRead(quint16 parameter) {
     return QByteArray("J") + hexField(parameter) + '\r';
 }
 
-QByteArray encodeWrite(quint16 parameter, quint16 value) {
+QByteArray PICTextProtocol::encodeWrite(quint16 parameter, quint16 value) {
     return QByteArray("P") + hexField(parameter) + ' ' + hexField(value) + '\r';
 }
 
-Response decode(const QByteArray& frame) {
+PICTextProtocol::Response PICTextProtocol::decode(const QByteArray& frame) {
     Response result;
     if (frame.size() == 11 && frame[0] == 'K' && frame[5] == ' ' && frame[10] == '\r') {
         if (!parseHex(frame, 1, result.parameter) || !parseHex(frame, 6, result.value)) return {};
@@ -44,7 +39,7 @@ Response decode(const QByteArray& frame) {
     return result;
 }
 
-FrameAssembler::Result FrameAssembler::append(const QByteArray& bytes) {
+PICTextProtocol::Result PICTextProtocol::append(const QByteArray& bytes) {
     Result result;
     for (char byte : bytes) {
         if (m_discarding) {
@@ -60,16 +55,15 @@ FrameAssembler::Result FrameAssembler::append(const QByteArray& bytes) {
         }
         m_pending.append(byte);
         if (byte == '\r') {
-            result.frames.append(m_pending);
+            result.responses.append(decode(m_pending));
             m_pending.clear();
         }
     }
     return result;
 }
 
-void FrameAssembler::reset() {
+void PICTextProtocol::reset() {
     m_pending.clear();
     m_discarding = false;
 }
 
-} // namespace PICTextProtocol

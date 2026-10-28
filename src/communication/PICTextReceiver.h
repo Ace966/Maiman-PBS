@@ -1,11 +1,11 @@
 #pragma once
 
-#include <QMetaType>
 #include <QObject>
 #include "PICTextProtocol.h"
 
 class DataThread;
 
+// Temporary queued-signal adapter until the Worker owns the protocol instance.
 // Construct and connect consumers in the caller thread before starting worker.
 // The parent/caller owns this object; worker is borrowed, never controlled here.
 class PICTextReceiver : public QObject {
@@ -22,7 +22,6 @@ signals:
 
 private:
     void receive(const QByteArray& bytes);
-    PICTextProtocol::FrameAssembler m_assembler;
+    PICTextProtocol m_protocol;
 };
 
-Q_DECLARE_METATYPE(PICTextProtocol::Response)

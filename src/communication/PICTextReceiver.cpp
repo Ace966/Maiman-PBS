@@ -9,11 +9,11 @@ PICTextReceiver::PICTextReceiver(DataThread& worker, QObject* parent) : QObject(
 }
 
 void PICTextReceiver::receive(const QByteArray& bytes) {
-    const auto result = m_assembler.append(bytes);
-    for (const auto& frame : result.frames) emit responseReceived(PICTextProtocol::decode(frame));
+    const auto result = m_protocol.append(bytes);
+    for (const auto& response : result.responses) emit responseReceived(response);
     if (result.discardedFrames) emit framesDiscarded(result.discardedFrames);
 }
 
 void PICTextReceiver::reset() {
-    m_assembler.reset();
+    m_protocol.reset();
 }

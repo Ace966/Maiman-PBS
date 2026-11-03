@@ -6,13 +6,12 @@
 #include <QFile>
 #include <QTemporaryDir>
 #include <QtTest>
-#include <limits>
 
 namespace {
 QByteArray minimal() {
-    return "<DB pbsMetadataVersion=\"1\"><Device id=\"2222\" name=\"Example\" pbsChannelCount=\"3\">"
-           "<Commands><Command code=\"0042\" pbsName=\"Setting\" pbsAccess=\"rw\" pbsChannel=\"1\" "
-           "unit=\"V\" divider=\"100\" tol=\"2\"/></Commands></Device></DB>";
+    return "<DB><Device id=\"2222\" name=\"Example\"><Commands>"
+           "<Command code=\"0042\" unit=\"V\" divider=\"100\" tol=\"2\"/>"
+           "</Commands></Device></DB>";
 }
 
 std::optional<DeviceConfiguration> loadText(const QByteArray& bytes, QString* error = nullptr,
@@ -29,11 +28,9 @@ std::optional<DeviceConfiguration> loadText(const QByteArray& bytes, QString* er
 QByteArray metadataHash(const DeviceConfiguration& configuration) {
     QByteArray canonical;
     for (auto it = configuration.parameters().cbegin(); it != configuration.parameters().cend(); ++it) {
-        const auto access = it->access == ParameterAccess::ReadOnly ? QStringLiteral("r")
-            : it->access == ParameterAccess::WriteOnly ? QStringLiteral("w") : QStringLiteral("rw");
         canonical += (QStringList{QStringLiteral("%1").arg(it.key(), 4, 16, QLatin1Char('0')).toUpper(),
-            it->name, it->channel ? QString::number(*it->channel) : QStringLiteral("-"),
-            it->unit, QString::number(it->scale, 'g', 17), access}.join(QLatin1Char('\t')) + QLatin1Char('\n')).toUtf8();
+            it->unit, QString::number(it->scale, 'g', 17), QString::number(it->tolerance)}
+            .join(QLatin1Char('\t')) + QLatin1Char('\n')).toUtf8();
     }
     return QCryptographicHash::hash(canonical, QCryptographicHash::Sha256).toHex();
 }
@@ -48,6 +45,9 @@ private slots:
     void optionalMetadata();
     void legacyFieldMeanings();
     void numericBoundaries();
+    void treeFieldRepresentation();
+    void unknownFields();
+    void syntaxLocation();
     void failure_data();
     void failure();
     void unknownModel();
@@ -57,33 +57,31 @@ private slots:
 
 void XmlConfigLoaderTests::completeCatalog_data() {
     QTest::addColumn<quint16>("id"); QTest::addColumn<QString>("name");
-    QTest::addColumn<int>("channels"); QTest::addColumn<int>("count"); QTest::addColumn<QByteArray>("hash");
-    // SHA256 of every original (ID,name,optional-channel,unit,scale,access) tuple,
-    // sorted by numeric ID, extracted independently from the frozen baseline YAML.
-    QTest::newRow("PIC-8") << quint16(0x1700) << QStringLiteral("PIC-8") << 8 << 97
-        << QByteArray("08fedde654d43ec60cde6a34e48e5e2aca34cb57b6db8d0deae6e8116da6a890");
-    QTest::newRow("PIC-16") << quint16(0x1701) << QStringLiteral("PIC-16") << 16 << 185
-        << QByteArray("3c13a487191d3d4a363a7842c4ec7ef24749f9736898dd08d87004dcf20907ff");
+    QTest::addColumn<int>("count"); QTest::addColumn<QByteArray>("hash");
+    // SHA256 of (ID,unit,scale,tolerance), sorted by ID, independently projected
+    // from the reviewed Task 04 catalog before removing its PBS-only attributes.
+    QTest::newRow("PIC-8") << quint16(0x1700) << QStringLiteral("PIC-8") << 97
+        << QByteArray("85927a7fa0704568baccd74631edc3c9ba030e5dfa7e10668ad1f475d6c73128");
+    QTest::newRow("PIC-16") << quint16(0x1701) << QStringLiteral("PIC-16") << 185
+        << QByteArray("6ed5d73690357087555bedfe9cf56755212a646b522dcdb705872d59d8b27d21");
 }
 
 void XmlConfigLoaderTests::completeCatalog() {
-    QFETCH(quint16, id); QFETCH(QString, name); QFETCH(int, channels); QFETCH(int, count); QFETCH(QByteArray, hash);
+    QFETCH(quint16, id); QFETCH(QString, name); QFETCH(int, count); QFETCH(QByteArray, hash);
     QString error = QStringLiteral("previous error");
     const auto result = XmlConfigLoader::loadModel(QFINDTESTDATA("../config/device_db.xml"), id, &error);
     QVERIFY2(result.has_value(), qPrintable(error)); QVERIFY(error.isEmpty());
     QCOMPARE(result->modelId(), id); QCOMPARE(result->modelName(), name);
-    QCOMPARE(result->channelCount(), channels); QCOMPARE(result->parameters().size(), count);
+    QCOMPARE(result->parameters().size(), count);
     QCOMPARE(metadataHash(*result), hash);
-    for (const auto& parameter : result->parameters()) {
-        QVERIFY(!parameter.channel || *parameter.channel <= channels);
+    for (const auto& parameter : result->parameters())
         QCOMPARE(parameter.tolerance, quint8(parameter.scale == 0.01 ? 2 : parameter.scale == 0.1 ? 1 : 0));
-    }
     QCOMPARE(result->parameters().value(0x0017).scale * 356, 3.56);
     QCOMPARE(result->parameters().value(0x0017).scale * 900, 9.0);
-    QVERIFY(!result->parameters().value(0x0701).channel.has_value());
-    QCOMPARE(result->parameters().value(0x0001).channel.value(), quint8(0));
-    QCOMPARE(result->parameters().contains(0x0091), channels == 16);
-    QCOMPARE(result->parameters().contains(0x010A), channels == 16);
+    QVERIFY(result->parameters().contains(0x0701));
+    QVERIFY(result->parameters().contains(0x0001));
+    QCOMPARE(result->parameters().contains(0x0091), id == 0x1701);
+    QCOMPARE(result->parameters().contains(0x010A), id == 0x1701);
 }
 
 void XmlConfigLoaderTests::genericModelAndRepository() {
@@ -91,16 +89,15 @@ void XmlConfigLoaderTests::genericModelAndRepository() {
     const auto result = loadText(xml);
     QVERIFY(result.has_value());
     QCOMPARE(result->modelId(), quint16(0x2222));
-    QCOMPARE(result->modelName(), QStringLiteral("PIC-8")); QCOMPARE(result->channelCount(), 3);
+    QCOMPARE(result->modelName(), QStringLiteral("PIC-8"));
     const auto renamed = loadText(xml.replace("PIC-8", "Other label"));
     QVERIFY(renamed.has_value()); QCOMPARE(renamed->modelId(), result->modelId());
     QCOMPARE(renamed->modelName(), QStringLiteral("Other label"));
-    QCOMPARE(renamed->channelCount(), 3);
     const auto makeRepository = [] {
         auto configuration = loadText(minimal());
         if (!configuration) qFatal("Invalid generic XML fixture");
         DeviceRepository repository(*configuration);
-        if (!configuration->addParameter(0x0043, {QStringLiteral("Other"), quint8(3), {}, 1.0, ParameterAccess::ReadOnly}))
+        if (!configuration->addParameter(0x0043, {QStringLiteral("mA"), 0.1}))
             qFatal("Invalid generic parameter fixture");
         return repository;
     };
@@ -116,41 +113,60 @@ void XmlConfigLoaderTests::genericModelAndRepository() {
 }
 
 void XmlConfigLoaderTests::optionalMetadata() {
-    const auto xml = minimal().replace(" pbsChannel=\"1\"", "").replace(" unit=\"V\" divider=\"100\" tol=\"2\"", "");
-    const auto global = loadText(xml);
-    const auto zero = loadText(QByteArray(xml).replace("pbsAccess=\"rw\"", "pbsAccess=\"w\" pbsChannel=\"0\""));
-    QVERIFY(global.has_value()); QVERIFY(zero.has_value());
-    const auto definition = global->parameters().value(0x0042);
-    QVERIFY(!definition.channel.has_value()); QVERIFY(definition.unit.isEmpty());
+    const auto result = loadText(minimal().replace(" unit=\"V\" divider=\"100\" tol=\"2\"", ""));
+    QVERIFY(result);
+    const auto definition = result->parameters().value(0x0042);
+    QVERIFY(definition.unit.isEmpty());
     QCOMPARE(definition.scale, 1.0); QCOMPARE(definition.tolerance, quint8(0));
-    QCOMPARE(zero->parameters().value(0x0042).channel.value(), quint8(0));
-    QCOMPARE(zero->parameters().value(0x0042).access, ParameterAccess::WriteOnly);
-    const auto noPhysicalChannels = loadText(QByteArray(xml).replace("pbsChannelCount=\"3\"", "pbsChannelCount=\"0\""));
-    QVERIFY(noPhysicalChannels.has_value()); QCOMPARE(noPhysicalChannels->channelCount(), 0);
 }
 
 void XmlConfigLoaderTests::legacyFieldMeanings() {
     const auto xml = minimal().replace("id=\"2222\"", "id=\"10\"").replace("code=\"0042\"", "code=\"a\"")
-        .replace("pbsChannelCount=\"3\"", "pbsChannelCount=\"10\"").replace("pbsChannel=\"1\"", "pbsChannel=\"10\"")
         .replace("unit=\"V\"", "unit=\"(deg)\"").replace("divider=\"100\"", "divider=\"-10\"")
         .replace("<Device", "<BaudRate value=\"115200\"/><CommonIDDevices/><Device");
     const auto result = loadText(xml, nullptr, 0x10);
-    QVERIFY(result.has_value()); QCOMPARE(result->modelId(), quint16(16));
-    QCOMPARE(result->channelCount(), 10);
+    QVERIFY(result); QCOMPARE(result->modelId(), quint16(16));
     const auto definition = result->parameters().value(0x000a);
-    QCOMPARE(definition.channel.value(), quint8(10));
     QCOMPARE(definition.unit, QString(QChar(0x00b0))); QCOMPARE(definition.scale, -0.1);
     QCOMPARE(definition.tolerance, quint8(2));
 }
 
 void XmlConfigLoaderTests::numericBoundaries() {
     const auto xml = minimal().replace("id=\"2222\"", "id=\"FFFF\"").replace("code=\"0042\"", "code=\"FFFF\"")
-        .replace("pbsChannelCount=\"3\"", "pbsChannelCount=\"" + QByteArray::number(std::numeric_limits<int>::max()) + "\"")
-        .replace("pbsChannel=\"1\"", "pbsChannel=\"255\"").replace("tol=\"2\"", "tol=\"255\"");
+        .replace("tol=\"2\"", "tol=\"255\"");
     const auto result = loadText(xml, nullptr, 0xffff);
-    QVERIFY(result.has_value()); QCOMPARE(result->channelCount(), std::numeric_limits<int>::max());
-    QCOMPARE(result->parameters().value(0xffff).channel.value(), quint8(255));
+    QVERIFY(result); QCOMPARE(result->modelId(), quint16(0xffff));
+    QCOMPARE(result->parameters().size(), 1);
     QCOMPARE(result->parameters().value(0xffff).tolerance, quint8(255));
+}
+
+void XmlConfigLoaderTests::treeFieldRepresentation() {
+    // Attributes and same-named leaf elements have the same MultiBench tree shape.
+    const auto result = loadText(
+        "<DB><Device><id>2222</id><name>Example</name><Commands><Command>"
+        "<code>0042</code><unit>V</unit><divider>100</divider><tol>2</tol>"
+        "</Command></Commands></Device></DB>");
+    QVERIFY(result);
+    QCOMPARE(metadataHash(*result), metadataHash(*loadText(minimal())));
+    QCOMPARE(result->modelName(), QStringLiteral("Example"));
+}
+
+void XmlConfigLoaderTests::unknownFields() {
+    const auto xml = minimal().replace("<DB>", "<DB pbsMetadataVersion=\"obsolete\">")
+        .replace("name=\"Example\"", "name=\"Example\" pbsChannelCount=\"ignored\"")
+        .replace("code=\"0042\"", "code=\"0042\" pbsName=\"ignored\" pbsAccess=\"ignored\" pbsChannel=\"ignored\"")
+        .replace("<Commands>", "<Unknown><Commands/></Unknown><Commands>")
+        .replace("<Command code", "<Unknown><Command code=\"BAD\"/></Unknown><Command code");
+    const auto result = loadText(xml);
+    QVERIFY(result);
+    QCOMPARE(result->parameters().size(), 1);
+    QCOMPARE(metadataHash(*result), metadataHash(*loadText(minimal())));
+}
+
+void XmlConfigLoaderTests::syntaxLocation() {
+    QString error;
+    QVERIFY(!loadText("<DB>\n<Device></DB>", &error));
+    QVERIFY2(error.contains(QStringLiteral("XML at line 2, column ")), qPrintable(error));
 }
 
 void XmlConfigLoaderTests::failure_data() {
@@ -159,10 +175,8 @@ void XmlConfigLoaderTests::failure_data() {
         QTest::newRow(name) << xml << QString::fromLatin1(diagnostic);
     };
     const auto changed = [](const char* before, const char* after) { return minimal().replace(before, after); };
-    row("empty", "", "DB"); row("malformed", "<DB", "DB");
+    row("empty", "", "XML at line"); row("malformed", "<DB", "XML at line");
     row("wrong-root", "<Devices/>", "DB");
-    row("missing-version", changed(" pbsMetadataVersion=\"1\"", ""), "pbsMetadataVersion");
-    row("unsupported-version", changed("pbsMetadataVersion=\"1\"", "pbsMetadataVersion=\"2\""), "pbsMetadataVersion");
     row("missing-model-id", changed(" id=\"2222\"", ""), "id");
     row("invalid-model-id", changed("id=\"2222\"", "id=\"00G0\""), "id");
     row("zero-model-id", changed("id=\"2222\"", "id=\"0\""), "id");
@@ -170,23 +184,12 @@ void XmlConfigLoaderTests::failure_data() {
     row("overflow-model-id", changed("id=\"2222\"", "id=\"10000\""), "id");
     row("empty-name", changed("name=\"Example\"", "name=\"\""), "name");
     row("missing-name", changed(" name=\"Example\"", ""), "name");
-    row("missing-count", changed(" pbsChannelCount=\"3\"", ""), "pbsChannelCount");
-    row("negative-count", changed("pbsChannelCount=\"3\"", "pbsChannelCount=\"-1\""), "pbsChannelCount");
-    row("overflow-count", changed("pbsChannelCount=\"3\"", "pbsChannelCount=\"2147483648\""), "pbsChannelCount");
-    row("fractional-count", changed("pbsChannelCount=\"3\"", "pbsChannelCount=\"3.5\""), "pbsChannelCount");
-    row("empty-count", changed("pbsChannelCount=\"3\"", "pbsChannelCount=\"\""), "pbsChannelCount");
     row("missing-command-code", changed(" code=\"0042\"", ""), "code");
     row("invalid-command-code", changed("code=\"0042\"", "code=\"G\""), "code");
     row("overflow-command-code", changed("code=\"0042\"", "code=\"10000\""), "code");
     row("zero-command-code", changed("code=\"0042\"", "code=\"0\""), "code");
-    row("missing-parameter-name", changed(" pbsName=\"Setting\"", ""), "pbsName");
-    row("empty-parameter-name", changed("pbsName=\"Setting\"", "pbsName=\"\""), "pbsName");
-    row("missing-access", changed(" pbsAccess=\"rw\"", ""), "pbsAccess");
-    row("invalid-access", changed("pbsAccess=\"rw\"", "pbsAccess=\"read\""), "pbsAccess");
-    row("negative-channel", changed("pbsChannel=\"1\"", "pbsChannel=\"-1\""), "pbsChannel");
-    row("overflow-channel", changed("pbsChannel=\"1\"", "pbsChannel=\"256\""), "pbsChannel");
-    row("outside-channel", changed("pbsChannel=\"1\"", "pbsChannel=\"4\""), "pbsChannel");
-    row("fractional-channel", changed("pbsChannel=\"1\"", "pbsChannel=\"1.5\""), "pbsChannel");
+    row("negative-command-code", changed("code=\"0042\"", "code=\"-1\""), "code");
+    row("fractional-command-code", changed("code=\"0042\"", "code=\"1.5\""), "code");
     row("zero-divider", changed("divider=\"100\"", "divider=\"0\""), "divider");
     row("invalid-divider", changed("divider=\"100\"", "divider=\"wrong\""), "divider");
     row("nan-divider", changed("divider=\"100\"", "divider=\"nan\""), "divider");
@@ -199,7 +202,7 @@ void XmlConfigLoaderTests::failure_data() {
     const auto commands = minimal().mid(minimal().indexOf("<Commands>"), minimal().indexOf("</Commands>") - minimal().indexOf("<Commands>") + 11);
     const auto device = minimal().mid(minimal().indexOf("<Device"), minimal().indexOf("</Device>") - minimal().indexOf("<Device") + 9);
     row("duplicate-device", minimal().replace("</DB>", QByteArray(device).replace("2222", "02222") + "</DB>"), "duplicate Device");
-    row("duplicate-command", minimal().replace("</Commands>", "<Command code=\"42\" pbsName=\"Duplicate\" pbsAccess=\"r\"/></Commands>"), "duplicate code");
+    row("duplicate-command", minimal().replace("</Commands>", "<Command code=\"42\"/></Commands>"), "duplicate code");
     row("duplicate-commands-list", minimal().replace("</Device>", commands + "</Device>"), "duplicate Commands");
     row("empty-commands", minimal().replace(commands, "<Commands/>"), "Commands");
     row("missing-commands", minimal().replace(commands, ""), "Commands");
@@ -207,14 +210,14 @@ void XmlConfigLoaderTests::failure_data() {
     row("truncated-document", minimal().chopped(5), "");
     row("trailing-garbage", minimal() + "garbage", "");
     row("second-root", minimal() + "<DB/>", "");
-    row("invalid-unselected-model", minimal().replace("</DB>", QByteArray(device).replace("2222", "1701").replace("pbsAccess=\"rw\"", "pbsAccess=\"invalid\"") + "</DB>"), "pbsAccess");
+    row("invalid-unselected-model", minimal().replace("</DB>", QByteArray(device).replace("2222", "1701").replace("divider=\"100\"", "divider=\"0\"") + "</DB>"), "divider");
 }
 
 void XmlConfigLoaderTests::failure() {
     QFETCH(QByteArray, xml); QFETCH(QString, diagnostic); QString error = QStringLiteral("previous error");
     QVERIFY(!loadText(xml, &error)); QVERIFY(!error.isEmpty()); QVERIFY(error != QStringLiteral("previous error"));
     QVERIFY2(error.contains(diagnostic), qPrintable(error));
-    QVERIFY(error.contains(QLatin1Char(':'))); // Filename and XML location accompany parse errors.
+    QVERIFY(error.contains(QLatin1Char(':'))); // Every failure includes the filename; syntax errors also include location.
 }
 
 void XmlConfigLoaderTests::unknownModel() {

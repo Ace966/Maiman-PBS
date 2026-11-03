@@ -1,0 +1,293 @@
+<?xml version='1.0' encoding='utf-8'?>
+<DB>
+  <Device id="1700" name="PIC-8">
+    <Commands>
+      <Command code="0701" divider="1" tol="0" />
+      <Command code="0710" divider="1" tol="0" />
+      <Command code="0720" divider="1" tol="0" />
+      <Command code="0800" divider="1" tol="0" />
+      <Command code="0801" divider="1" tol="0" />
+      <Command code="0802" divider="1" tol="0" />
+      <Command code="0001" divider="1" tol="0" />
+      <Command code="0AF4" divider="10" tol="1" />
+      <Command code="0408" unit="V" divider="10" tol="1" />
+      <Command code="0012" unit="mA" divider="10" tol="1" />
+      <Command code="0013" unit="mA" divider="10" tol="1" />
+      <Command code="0014" unit="mA" divider="10" tol="1" />
+      <Command code="0015" unit="mA" divider="10" tol="1" />
+      <Command code="0016" unit="mA" divider="10" tol="1" />
+      <Command code="0017" unit="V" divider="100" tol="2" />
+      <Command code="0018" unit="V" divider="100" tol="2" />
+      <Command code="0019" unit="V" divider="100" tol="2" />
+      <Command code="001A" unit="V" divider="100" tol="2" />
+      <Command code="001B" unit="V" divider="100" tol="2" />
+      <Command code="0011" divider="1" tol="0" />
+      <Command code="0022" unit="mA" divider="10" tol="1" />
+      <Command code="0023" unit="mA" divider="10" tol="1" />
+      <Command code="0024" unit="mA" divider="10" tol="1" />
+      <Command code="0025" unit="mA" divider="10" tol="1" />
+      <Command code="0026" unit="mA" divider="10" tol="1" />
+      <Command code="0027" unit="V" divider="100" tol="2" />
+      <Command code="0028" unit="V" divider="100" tol="2" />
+      <Command code="0029" unit="V" divider="100" tol="2" />
+      <Command code="002A" unit="V" divider="100" tol="2" />
+      <Command code="002B" unit="V" divider="100" tol="2" />
+      <Command code="0021" divider="1" tol="0" />
+      <Command code="0032" unit="mA" divider="10" tol="1" />
+      <Command code="0033" unit="mA" divider="10" tol="1" />
+      <Command code="0034" unit="mA" divider="10" tol="1" />
+      <Command code="0035" unit="mA" divider="10" tol="1" />
+      <Command code="0036" unit="mA" divider="10" tol="1" />
+      <Command code="0037" unit="V" divider="100" tol="2" />
+      <Command code="0038" unit="V" divider="100" tol="2" />
+      <Command code="0039" unit="V" divider="100" tol="2" />
+      <Command code="003A" unit="V" divider="100" tol="2" />
+      <Command code="003B" unit="V" divider="100" tol="2" />
+      <Command code="0031" divider="1" tol="0" />
+      <Command code="0042" unit="mA" divider="10" tol="1" />
+      <Command code="0043" unit="mA" divider="10" tol="1" />
+      <Command code="0044" unit="mA" divider="10" tol="1" />
+      <Command code="0045" unit="mA" divider="10" tol="1" />
+      <Command code="0046" unit="mA" divider="10" tol="1" />
+      <Command code="0047" unit="V" divider="100" tol="2" />
+      <Command code="0048" unit="V" divider="100" tol="2" />
+      <Command code="0049" unit="V" divider="100" tol="2" />
+      <Command code="004A" unit="V" divider="100" tol="2" />
+      <Command code="004B" unit="V" divider="100" tol="2" />
+      <Command code="0041" divider="1" tol="0" />
+      <Command code="0052" unit="mA" divider="10" tol="1" />
+      <Command code="0053" unit="mA" divider="10" tol="1" />
+      <Command code="0054" unit="mA" divider="10" tol="1" />
+      <Command code="0055" unit="mA" divider="10" tol="1" />
+      <Command code="0056" unit="mA" divider="10" tol="1" />
+      <Command code="0057" unit="V" divider="100" tol="2" />
+      <Command code="0058" unit="V" divider="100" tol="2" />
+      <Command code="0059" unit="V" divider="100" tol="2" />
+      <Command code="005A" unit="V" divider="100" tol="2" />
+      <Command code="005B" unit="V" divider="100" tol="2" />
+      <Command code="0051" divider="1" tol="0" />
+      <Command code="0062" unit="mA" divider="10" tol="1" />
+      <Command code="0063" unit="mA" divider="10" tol="1" />
+      <Command code="0064" unit="mA" divider="10" tol="1" />
+      <Command code="0065" unit="mA" divider="10" tol="1" />
+      <Command code="0066" unit="mA" divider="10" tol="1" />
+      <Command code="0067" unit="V" divider="100" tol="2" />
+      <Command code="0068" unit="V" divider="100" tol="2" />
+      <Command code="0069" unit="V" divider="100" tol="2" />
+      <Command code="006A" unit="V" divider="100" tol="2" />
+      <Command code="006B" unit="V" divider="100" tol="2" />
+      <Command code="0061" divider="1" tol="0" />
+      <Command code="0072" unit="mA" divider="10" tol="1" />
+      <Command code="0073" unit="mA" divider="10" tol="1" />
+      <Command code="0074" unit="mA" divider="10" tol="1" />
+      <Command code="0075" unit="mA" divider="10" tol="1" />
+      <Command code="0076" unit="mA" divider="10" tol="1" />
+      <Command code="0077" unit="V" divider="100" tol="2" />
+      <Command code="0078" unit="V" divider="100" tol="2" />
+      <Command code="0079" unit="V" divider="100" tol="2" />
+      <Command code="007A" unit="V" divider="100" tol="2" />
+      <Command code="007B" unit="V" divider="100" tol="2" />
+      <Command code="0071" divider="1" tol="0" />
+      <Command code="0082" unit="mA" divider="10" tol="1" />
+      <Command code="0083" unit="mA" divider="10" tol="1" />
+      <Command code="0084" unit="mA" divider="10" tol="1" />
+      <Command code="0085" unit="mA" divider="10" tol="1" />
+      <Command code="0086" unit="mA" divider="10" tol="1" />
+      <Command code="0087" unit="V" divider="100" tol="2" />
+      <Command code="0088" unit="V" divider="100" tol="2" />
+      <Command code="0089" unit="V" divider="100" tol="2" />
+      <Command code="008A" unit="V" divider="100" tol="2" />
+      <Command code="008B" unit="V" divider="100" tol="2" />
+      <Command code="0081" divider="1" tol="0" />
+    </Commands>
+  </Device>
+  <Device id="1701" name="PIC-16">
+    <Commands>
+      <Command code="0701" divider="1" tol="0" />
+      <Command code="0710" divider="1" tol="0" />
+      <Command code="0720" divider="1" tol="0" />
+      <Command code="0800" divider="1" tol="0" />
+      <Command code="0801" divider="1" tol="0" />
+      <Command code="0802" divider="1" tol="0" />
+      <Command code="0001" divider="1" tol="0" />
+      <Command code="0AF4" divider="10" tol="1" />
+      <Command code="0408" unit="V" divider="10" tol="1" />
+      <Command code="0012" unit="mA" divider="10" tol="1" />
+      <Command code="0013" unit="mA" divider="10" tol="1" />
+      <Command code="0014" unit="mA" divider="10" tol="1" />
+      <Command code="0015" unit="mA" divider="10" tol="1" />
+      <Command code="0016" unit="mA" divider="10" tol="1" />
+      <Command code="0017" unit="V" divider="100" tol="2" />
+      <Command code="0018" unit="V" divider="100" tol="2" />
+      <Command code="0019" unit="V" divider="100" tol="2" />
+      <Command code="001A" unit="V" divider="100" tol="2" />
+      <Command code="001B" unit="V" divider="100" tol="2" />
+      <Command code="0011" divider="1" tol="0" />
+      <Command code="0022" unit="mA" divider="10" tol="1" />
+      <Command code="0023" unit="mA" divider="10" tol="1" />
+      <Command code="0024" unit="mA" divider="10" tol="1" />
+      <Command code="0025" unit="mA" divider="10" tol="1" />
+      <Command code="0026" unit="mA" divider="10" tol="1" />
+      <Command code="0027" unit="V" divider="100" tol="2" />
+      <Command code="0028" unit="V" divider="100" tol="2" />
+      <Command code="0029" unit="V" divider="100" tol="2" />
+      <Command code="002A" unit="V" divider="100" tol="2" />
+      <Command code="002B" unit="V" divider="100" tol="2" />
+      <Command code="0021" divider="1" tol="0" />
+      <Command code="0032" unit="mA" divider="10" tol="1" />
+      <Command code="0033" unit="mA" divider="10" tol="1" />
+      <Command code="0034" unit="mA" divider="10" tol="1" />
+      <Command code="0035" unit="mA" divider="10" tol="1" />
+      <Command code="0036" unit="mA" divider="10" tol="1" />
+      <Command code="0037" unit="V" divider="100" tol="2" />
+      <Command code="0038" unit="V" divider="100" tol="2" />
+      <Command code="0039" unit="V" divider="100" tol="2" />
+      <Command code="003A" unit="V" divider="100" tol="2" />
+      <Command code="003B" unit="V" divider="100" tol="2" />
+      <Command code="0031" divider="1" tol="0" />
+      <Command code="0042" unit="mA" divider="10" tol="1" />
+      <Command code="0043" unit="mA" divider="10" tol="1" />
+      <Command code="0044" unit="mA" divider="10" tol="1" />
+      <Command code="0045" unit="mA" divider="10" tol="1" />
+      <Command code="0046" unit="mA" divider="10" tol="1" />
+      <Command code="0047" unit="V" divider="100" tol="2" />
+      <Command code="0048" unit="V" divider="100" tol="2" />
+      <Command code="0049" unit="V" divider="100" tol="2" />
+      <Command code="004A" unit="V" divider="100" tol="2" />
+      <Command code="004B" unit="V" divider="100" tol="2" />
+      <Command code="0041" divider="1" tol="0" />
+      <Command code="0052" unit="mA" divider="10" tol="1" />
+      <Command code="0053" unit="mA" divider="10" tol="1" />
+      <Command code="0054" unit="mA" divider="10" tol="1" />
+      <Command code="0055" unit="mA" divider="10" tol="1" />
+      <Command code="0056" unit="mA" divider="10" tol="1" />
+      <Command code="0057" unit="V" divider="100" tol="2" />
+      <Command code="0058" unit="V" divider="100" tol="2" />
+      <Command code="0059" unit="V" divider="100" tol="2" />
+      <Command code="005A" unit="V" divider="100" tol="2" />
+      <Command code="005B" unit="V" divider="100" tol="2" />
+      <Command code="0051" divider="1" tol="0" />
+      <Command code="0062" unit="mA" divider="10" tol="1" />
+      <Command code="0063" unit="mA" divider="10" tol="1" />
+      <Command code="0064" unit="mA" divider="10" tol="1" />
+      <Command code="0065" unit="mA" divider="10" tol="1" />
+      <Command code="0066" unit="mA" divider="10" tol="1" />
+      <Command code="0067" unit="V" divider="100" tol="2" />
+      <Command code="0068" unit="V" divider="100" tol="2" />
+      <Command code="0069" unit="V" divider="100" tol="2" />
+      <Command code="006A" unit="V" divider="100" tol="2" />
+      <Command code="006B" unit="V" divider="100" tol="2" />
+      <Command code="0061" divider="1" tol="0" />
+      <Command code="0072" unit="mA" divider="10" tol="1" />
+      <Command code="0073" unit="mA" divider="10" tol="1" />
+      <Command code="0074" unit="mA" divider="10" tol="1" />
+      <Command code="0075" unit="mA" divider="10" tol="1" />
+      <Command code="0076" unit="mA" divider="10" tol="1" />
+      <Command code="0077" unit="V" divider="100" tol="2" />
+      <Command code="0078" unit="V" divider="100" tol="2" />
+      <Command code="0079" unit="V" divider="100" tol="2" />
+      <Command code="007A" unit="V" divider="100" tol="2" />
+      <Command code="007B" unit="V" divider="100" tol="2" />
+      <Command code="0071" divider="1" tol="0" />
+      <Command code="0082" unit="mA" divider="10" tol="1" />
+      <Command code="0083" unit="mA" divider="10" tol="1" />
+      <Command code="0084" unit="mA" divider="10" tol="1" />
+      <Command code="0085" unit="mA" divider="10" tol="1" />
+      <Command code="0086" unit="mA" divider="10" tol="1" />
+      <Command code="0087" unit="V" divider="100" tol="2" />
+      <Command code="0088" unit="V" divider="100" tol="2" />
+      <Command code="0089" unit="V" divider="100" tol="2" />
+      <Command code="008A" unit="V" divider="100" tol="2" />
+      <Command code="008B" unit="V" divider="100" tol="2" />
+      <Command code="0081" divider="1" tol="0" />
+      <Command code="0092" unit="mA" divider="10" tol="1" />
+      <Command code="0093" unit="mA" divider="10" tol="1" />
+      <Command code="0094" unit="mA" divider="10" tol="1" />
+      <Command code="0095" unit="mA" divider="10" tol="1" />
+      <Command code="0096" unit="mA" divider="10" tol="1" />
+      <Command code="0097" unit="V" divider="100" tol="2" />
+      <Command code="0098" unit="V" divider="100" tol="2" />
+      <Command code="0099" unit="V" divider="100" tol="2" />
+      <Command code="009A" unit="V" divider="100" tol="2" />
+      <Command code="009B" unit="V" divider="100" tol="2" />
+      <Command code="0091" divider="1" tol="0" />
+      <Command code="00A2" unit="mA" divider="10" tol="1" />
+      <Command code="00A3" unit="mA" divider="10" tol="1" />
+      <Command code="00A4" unit="mA" divider="10" tol="1" />
+      <Command code="00A5" unit="mA" divider="10" tol="1" />
+      <Command code="00A6" unit="mA" divider="10" tol="1" />
+      <Command code="00A7" unit="V" divider="100" tol="2" />
+      <Command code="00A8" unit="V" divider="100" tol="2" />
+      <Command code="00A9" unit="V" divider="100" tol="2" />
+      <Command code="00AA" unit="V" divider="100" tol="2" />
+      <Command code="00AB" unit="V" divider="100" tol="2" />
+      <Command code="00A1" divider="1" tol="0" />
+      <Command code="00B2" unit="mA" divider="10" tol="1" />
+      <Command code="00B3" unit="mA" divider="10" tol="1" />
+      <Command code="00B4" unit="mA" divider="10" tol="1" />
+      <Command code="00B5" unit="mA" divider="10" tol="1" />
+      <Command code="00B6" unit="mA" divider="10" tol="1" />
+      <Command code="00B7" unit="V" divider="100" tol="2" />
+      <Command code="00B8" unit="V" divider="100" tol="2" />
+      <Command code="00B9" unit="V" divider="100" tol="2" />
+      <Command code="00BA" unit="V" divider="100" tol="2" />
+      <Command code="00BB" unit="V" divider="100" tol="2" />
+      <Command code="00B1" divider="1" tol="0" />
+      <Command code="00C2" unit="mA" divider="10" tol="1" />
+      <Command code="00C3" unit="mA" divider="10" tol="1" />
+      <Command code="00C4" unit="mA" divider="10" tol="1" />
+      <Command code="00C5" unit="mA" divider="10" tol="1" />
+      <Command code="00C6" unit="mA" divider="10" tol="1" />
+      <Command code="00C7" unit="V" divider="100" tol="2" />
+      <Command code="00C8" unit="V" divider="100" tol="2" />
+      <Command code="00C9" unit="V" divider="100" tol="2" />
+      <Command code="00CA" unit="V" divider="100" tol="2" />
+      <Command code="00CB" unit="V" divider="100" tol="2" />
+      <Command code="00C1" divider="1" tol="0" />
+      <Command code="00D2" unit="mA" divider="10" tol="1" />
+      <Command code="00D3" unit="mA" divider="10" tol="1" />
+      <Command code="00D4" unit="mA" divider="10" tol="1" />
+      <Command code="00D5" unit="mA" divider="10" tol="1" />
+      <Command code="00D6" unit="mA" divider="10" tol="1" />
+      <Command code="00D7" unit="V" divider="100" tol="2" />
+      <Command code="00D8" unit="V" divider="100" tol="2" />
+      <Command code="00D9" unit="V" divider="100" tol="2" />
+      <Command code="00DA" unit="V" divider="100" tol="2" />
+      <Command code="00DB" unit="V" divider="100" tol="2" />
+      <Command code="00D1" divider="1" tol="0" />
+      <Command code="00E2" unit="mA" divider="10" tol="1" />
+      <Command code="00E3" unit="mA" divider="10" tol="1" />
+      <Command code="00E4" unit="mA" divider="10" tol="1" />
+      <Command code="00E5" unit="mA" divider="10" tol="1" />
+      <Command code="00E6" unit="mA" divider="10" tol="1" />
+      <Command code="00E7" unit="V" divider="100" tol="2" />
+      <Command code="00E8" unit="V" divider="100" tol="2" />
+      <Command code="00E9" unit="V" divider="100" tol="2" />
+      <Command code="00EA" unit="V" divider="100" tol="2" />
+      <Command code="00EB" unit="V" divider="100" tol="2" />
+      <Command code="00E1" divider="1" tol="0" />
+      <Command code="00F2" unit="mA" divider="10" tol="1" />
+      <Command code="00F3" unit="mA" divider="10" tol="1" />
+      <Command code="00F4" unit="mA" divider="10" tol="1" />
+      <Command code="00F5" unit="mA" divider="10" tol="1" />
+      <Command code="00F6" unit="mA" divider="10" tol="1" />
+      <Command code="00F7" unit="V" divider="100" tol="2" />
+      <Command code="00F8" unit="V" divider="100" tol="2" />
+      <Command code="00F9" unit="V" divider="100" tol="2" />
+      <Command code="00FA" unit="V" divider="100" tol="2" />
+      <Command code="00FB" unit="V" divider="100" tol="2" />
+      <Command code="00F1" divider="1" tol="0" />
+      <Command code="0102" unit="mA" divider="10" tol="1" />
+      <Command code="0103" unit="mA" divider="10" tol="1" />
+      <Command code="0104" unit="mA" divider="10" tol="1" />
+      <Command code="0105" unit="mA" divider="10" tol="1" />
+      <Command code="0106" unit="mA" divider="10" tol="1" />
+      <Command code="0107" unit="V" divider="100" tol="2" />
+      <Command code="0108" unit="V" divider="100" tol="2" />
+      <Command code="0109" unit="V" divider="100" tol="2" />
+      <Command code="010A" unit="V" divider="100" tol="2" />
+      <Command code="010B" unit="V" divider="100" tol="2" />
+      <Command code="0101" divider="1" tol="0" />
+    </Commands>
+  </Device>
+</DB>

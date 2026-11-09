@@ -24,14 +24,11 @@ bool SerialDataSource::open(const SerialSettings& settings) {
     }
     m_device = port.release();
     m_device->setParent(this); // Local RAII ownership transfers to Qt ownership.
-    connect(m_device, &QIODevice::readyRead, this, &IDataSource::readyRead);
-    connect(m_device, &QIODevice::bytesWritten, this, &IDataSource::bytesWritten);
     connect(m_device, &QSerialPort::errorOccurred, this, [this](QSerialPort::SerialPortError error) {
-        if (error == QSerialPort::NoError) return;
+        if (error == QSerialPort::NoError || error == QSerialPort::TimeoutError) return;
         m_error = QStringLiteral("%1 (Qt serial error %2).")
             .arg(m_device->errorString()).arg(int(error));
         m_failed = true;
-        emit errorOccurred(m_error);
     });
     return true;
 }
@@ -61,8 +58,21 @@ qint64 SerialDataSource::read(char* data, qint64 maximum) {
 }
 qint64 SerialDataSource::bytesAvailable() const { return m_device ? m_device->bytesAvailable() : 0; }
 qint64 SerialDataSource::bytesToWrite() const { return m_device ? m_device->bytesToWrite() : 0; }
+bool SerialDataSource::waitForReadyRead(int timeoutMs) {
+    Q_ASSERT(thread() == QThread::currentThread());
+    Q_ASSERT(timeoutMs > 0);
+    if (!m_device || !m_device->isOpen()) { m_error = QStringLiteral("Serial port is not open."); return false; }
+    return m_device->waitForReadyRead(timeoutMs);
+}
+bool SerialDataSource::waitForBytesWritten(int timeoutMs) {
+    Q_ASSERT(thread() == QThread::currentThread());
+    Q_ASSERT(timeoutMs > 0);
+    if (!m_device || !m_device->isOpen()) { m_error = QStringLiteral("Serial port is not open."); return false; }
+    return m_device->waitForBytesWritten(timeoutMs);
+}
 bool SerialDataSource::hasError() const {
-    return !m_device || !m_device->isOpen() || m_failed || m_device->error() != QSerialPort::NoError;
+    return !m_device || !m_device->isOpen() || m_failed
+        || (m_device->error() != QSerialPort::NoError && m_device->error() != QSerialPort::TimeoutError);
 }
 QString SerialDataSource::errorString() const { return m_error; }
 std::unique_ptr<QSerialPort> SerialDataSource::createSerialPort() { return std::make_unique<QSerialPort>(); }

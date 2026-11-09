@@ -14,6 +14,8 @@ public:
     qint64 read(char* data, qint64 maximum) override;
     qint64 bytesAvailable() const override;
     qint64 bytesToWrite() const override;
+    bool waitForReadyRead(int timeoutMs) override;
+    bool waitForBytesWritten(int timeoutMs) override;
     bool hasError() const override;
     QString errorString() const override;
 protected:

@@ -3,9 +3,7 @@
 #include <QHash>
 #include <QSet>
 
-class QThread;
-
-// Caller-thread facade and sole QThread owner. All public calls are sequential
+// Caller-thread facade and sole communication-thread owner. All public calls are sequential
 // in this object's thread. Admission bounds include queued delivery and results.
 class CommunicationConnection : public QObject {
     Q_OBJECT
@@ -30,8 +28,7 @@ signals:
 private:
     quint64 submit(CommunicationWorker::Kind kind, quint16 parameter, quint16 value, int timeoutMs);
     void checkThread() const;
-    QThread* m_thread;
-    CommunicationWorker* m_worker; // Deleted in worker thread at QThread::finished.
+    CommunicationWorker* m_worker; // QThread object owned here in the creator thread.
     QHash<quint64, CommunicationWorker::Kind> m_requests;
     QSet<quint64> m_cancelling;
     int m_reads{0}, m_writes{0};

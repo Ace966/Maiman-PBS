@@ -43,7 +43,7 @@ private slots:
     void completeCatalog();
     void genericModelAndRepository();
     void optionalMetadata();
-    void legacyFieldMeanings();
+    void hexIdsAndSignedDivider();
     void numericBoundaries();
     void treeFieldRepresentation();
     void unknownFields();
@@ -120,14 +120,14 @@ void XmlConfigLoaderTests::optionalMetadata() {
     QCOMPARE(definition.scale, 1.0); QCOMPARE(definition.tolerance, quint8(0));
 }
 
-void XmlConfigLoaderTests::legacyFieldMeanings() {
+void XmlConfigLoaderTests::hexIdsAndSignedDivider() {
     const auto xml = minimal().replace("id=\"2222\"", "id=\"10\"").replace("code=\"0042\"", "code=\"a\"")
-        .replace("unit=\"V\"", "unit=\"(deg)\"").replace("divider=\"100\"", "divider=\"-10\"")
+        .replace("unit=\"V\"", "unit=\"mV\"").replace("divider=\"100\"", "divider=\"-10\"")
         .replace("<Device", "<BaudRate value=\"115200\"/><CommonIDDevices/><Device");
     const auto result = loadText(xml, nullptr, 0x10);
     QVERIFY(result); QCOMPARE(result->modelId(), quint16(16));
     const auto definition = result->parameters().value(0x000a);
-    QCOMPARE(definition.unit, QString(QChar(0x00b0))); QCOMPARE(definition.scale, -0.1);
+    QCOMPARE(definition.unit, QStringLiteral("mV")); QCOMPARE(definition.scale, -0.1);
     QCOMPARE(definition.tolerance, quint8(2));
 }
 

@@ -1,7 +1,7 @@
 #pragma once
 #include "IDataSource.h"
 #include <QSerialPort>
-#include <memory>
+#include <QScopedPointer>
 
 class SerialDataSource : public IDataSource {
 public:
@@ -14,13 +14,15 @@ public:
     qint64 read(char* data, qint64 maximum) override;
     qint64 bytesAvailable() const override;
     qint64 bytesToWrite() const override;
+    bool waitForReadyRead(int timeoutMs) override;
+    bool waitForBytesWritten(int timeoutMs) override;
     bool hasError() const override;
     QString errorString() const override;
 protected:
-    virtual std::unique_ptr<QSerialPort> createSerialPort();
+    virtual QSerialPort* createSerialPort(); // New parentless port, adopted immediately by m_device.
     virtual bool configureBaudRate(QSerialPort& port, qint32 baud);
 private:
-    QSerialPort* m_device{nullptr}; // Owned QObject child after successful open.
+    QScopedPointer<QSerialPort> m_device;
     QString m_error;
     bool m_failed{false};
 };

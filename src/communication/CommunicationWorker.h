@@ -38,9 +38,6 @@ public:
 signals:
     void connectionChanged(bool connected, const QString& error, quint64 epoch);
     void requestFinished(const CommunicationWorker::Result& result);
-    void bytesSent(quint64 id);
-    void responseReceived(const PICTextProtocol::Response& response, quint64 epoch);
-    void framesDiscarded(qsizetype count, quint64 epoch);
 private:
     friend class CommunicationConnection;
     explicit CommunicationWorker(SourceFactory factory, QObject* parent);
@@ -49,11 +46,11 @@ private:
     void open(const SerialSettings& settings, quint64 epoch);
     void disconnectPort(quint64 epoch);
     void setInterCommandDelayMs(int delayMs);
-    void enqueue(const Request& request, quint64 epoch);
+    void enqueue(const Request& request);
     void cancel(quint64 id);
     void shutdown();
     void run() override;
-    Result transact(IDataSource& source, PICTextProtocol& protocol, const Request& request, quint64 epoch);
+    Result transact(IDataSource& source, PICTextProtocol& protocol, const Request& request);
     bool interrupted();
     void wakeLocked();
     QList<Request> takeQueuedLocked();
@@ -68,7 +65,7 @@ private:
     QMutex m_mutex;
     QSemaphore m_wake;
     bool m_wakePending{false}, m_stopping{false}, m_connected{false}, m_cancelActive{false};
-    quint64 m_sessionEpoch{0}, m_activeId{0};
+    quint64 m_activeId{0};
     std::optional<Control> m_control;
     QQueue<Request> m_reads, m_writes;
 };

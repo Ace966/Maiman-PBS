@@ -1,7 +1,6 @@
 #pragma once
 #include "CommunicationWorker.h"
 #include <QHash>
-#include <QSet>
 
 // Caller-thread facade and sole communication-thread owner. All public calls are sequential
 // in this object's thread. Admission bounds include queued delivery and results.
@@ -23,16 +22,17 @@ public:
 signals:
     void connectionChanged(bool connected, const QString& error);
     void requestFinished(const CommunicationWorker::Result& result);
-    void bytesSent(quint64 id);
-    void responseReceived(const PICTextProtocol::Response& response);
-    void framesDiscarded(qsizetype count);
+private slots:
+    void onConnectionChanged(bool connected, const QString& error, quint64 epoch);
+    void onRequestFinished(const CommunicationWorker::Result& result);
 private:
     quint64 submit(CommunicationWorker::Kind kind, quint16 parameter, quint16 value, int timeoutMs);
-    void checkThread() const;
     CommunicationWorker* m_worker; // QThread object owned here in the creator thread.
-    QHash<quint64, CommunicationWorker::Kind> m_requests;
-    QSet<quint64> m_cancelling;
-    int m_reads{0}, m_writes{0};
+    struct Pending {
+        CommunicationWorker::Kind kind;
+        bool cancelling{false};
+    };
+    QHash<quint64, Pending> m_requests;
     quint64 m_nextId{0}, m_epoch{0};
     bool m_connected{false}, m_controlPending{false}, m_shutdown{false};
     QString m_error;

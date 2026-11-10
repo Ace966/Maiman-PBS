@@ -33,21 +33,18 @@ void CommunicationWorker::setInterCommandDelayMs(int delayMs) {
     m_interCommandDelayMs = delayMs;
 }
 
-void CommunicationWorker::enqueue(const Request& request, quint64 epoch) {
-    Outcome rejection = Outcome::NotConnected;
+void CommunicationWorker::enqueue(const Request& request) {
     {
         QMutexLocker lock(&m_mutex);
-        if (!m_stopping && m_connected && epoch == m_sessionEpoch) {
+        if (m_connected) {
+            // The sole facade bounds outstanding requests, including active and undelivered results.
             auto& queue = request.kind == Kind::Write ? m_writes : m_reads;
-            if (queue.size() < QueueCapacity) {
-                queue.enqueue(request);
-                wakeLocked();
-                return;
-            }
-            rejection = Outcome::Cancelled;
+            queue.enqueue(request);
+            wakeLocked();
+            return;
         }
     }
-    complete(request, rejection, QStringLiteral("Connection unavailable or worker queue full."));
+    complete(request, Outcome::NotConnected, QStringLiteral("Connection is not available."));
 }
 
 void CommunicationWorker::cancel(quint64 id) {
@@ -148,14 +145,13 @@ void CommunicationWorker::run() {
             } else error = reason;
             {
                 QMutexLocker lock(&m_mutex);
-                m_sessionEpoch = epoch;
                 m_connected = opened && !m_stopping;
             }
             emit connectionChanged(opened, error, epoch);
             continue;
         }
         if (!request) continue;
-        auto result = transact(*source, protocol, *request, epoch);
+        auto result = transact(*source, protocol, *request);
         bool closing;
         {
             QMutexLocker lock(&m_mutex);
@@ -183,7 +179,7 @@ void CommunicationWorker::run() {
 }
 
 CommunicationWorker::Result CommunicationWorker::transact(
-    IDataSource& source, PICTextProtocol& protocol, const Request& request, quint64 epoch) {
+    IDataSource& source, PICTextProtocol& protocol, const Request& request) {
     QDeadlineTimer deadline(request.timeoutMs, Qt::PreciseTimer);
     Result result{request.id, request.kind, request.parameter, request.value, Outcome::BytesSent, 0, {}};
     std::optional<PICTextProtocol::Response> response;
@@ -209,14 +205,11 @@ CommunicationWorker::Result CommunicationWorker::transact(
         bytes.resize(count);
         const auto parsed = protocol.append(bytes);
         for (const auto& received : parsed.responses) {
-            if (!check()) return false;
-            emit responseReceived(received, epoch);
             if (!response && ((received.kind == PICTextProtocol::Kind::ParameterValue
                     && request.kind == Kind::Read && received.parameter == request.parameter)
                     || received.kind == PICTextProtocol::Kind::DeviceError
                     || received.kind == PICTextProtocol::Kind::NonexistentParameter)) response = received;
         }
-        if (parsed.discardedFrames) emit framesDiscarded(parsed.discardedFrames, epoch);
         return true;
     };
     const auto wait = [&](bool writing) {
@@ -252,7 +245,6 @@ CommunicationWorker::Result CommunicationWorker::transact(
         if (accepted > 0 && pending == 0) continue; // Finite progress, at most the command length.
         wait(pending > 0); // A zero write without pending bytes waits for input/expiry, never spins.
     }
-    emit bytesSent(request.id);
     while (request.kind == Kind::Read && !response) {
         if (!readAvailable()) return result;
         if (!response) wait(false);

@@ -65,8 +65,9 @@ class Source : public SerialDataSource {
 public:
     explicit Source(State& state):s(state) {}
 protected:
-    std::unique_ptr<QSerialPort> createSerialPort() override {
-        if(s.nullFactory)return {}; return std::make_unique<Port>(s);
+    QSerialPort* createSerialPort() override {
+        if (s.nullFactory) return nullptr;
+        return new Port(s);
     }
     bool configureBaudRate(QSerialPort& port,qint32 baud) override {
         if(s.failBaud) {static_cast<Port&>(port).configurationError(); return false;}
@@ -97,7 +98,7 @@ void SerialDataSourceTests::lazyConstructionAndDefaultFactory() {
     State s; {Source source(s); QCOMPARE(s.created,0);}
     QCOMPARE(s.destroyed,0);
     struct Probe: SerialDataSource { using SerialDataSource::createSerialPort; } source;
-    auto port=source.createSerialPort(); QVERIFY(port); QVERIFY(!port->isOpen()); QVERIFY(!port->parent());
+    QScopedPointer<QSerialPort> port(source.createSerialPort()); QVERIFY(port); QVERIFY(!port->isOpen()); QVERIFY(!port->parent());
     QCOMPARE(port->thread(),QThread::currentThread());
 }
 void SerialDataSourceTests::settings_data() {
@@ -111,7 +112,7 @@ void SerialDataSourceTests::settings_data() {
 void SerialDataSourceTests::settings() {
     QFETCH(QString,name); QFETCH(qint32,baud); State s; Source source(s);
     QVERIFY(source.open({name,baud})); QCOMPARE(s.name,name); QCOMPARE(s.baud,baud);
-    QVERIFY(s.observed->parent()==&source); QVERIFY(!source.hasError());
+    QVERIFY(!s.observed->parent()); QVERIFY(!source.hasError());
     QCOMPARE(s.observed->dataBits(),QSerialPort::Data8); QCOMPARE(s.observed->parity(),QSerialPort::NoParity);
     QCOMPARE(s.observed->flowControl(),QSerialPort::NoFlowControl); QCOMPARE(s.observed->stopBits(),QSerialPort::OneStop);
     source.close(); QVERIFY(s.observed.isNull()); QCOMPARE(s.created,s.destroyed); QCOMPARE(s.closed,1);

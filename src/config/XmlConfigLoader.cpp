@@ -36,7 +36,6 @@ bool command(const TreeItem& item, DeviceConfiguration& configuration, QString& 
     }
     ParameterDefinition definition;
     if (const auto* unit = child(item, "unit")) definition.unit = unit->value();
-    definition.unit.replace(QStringLiteral("(deg)"), QString(QChar(0x00b0)));
     if (const auto* field = child(item, "divider")) {
         bool ok = false;
         const auto divider = field->value().toDouble(&ok);
@@ -83,7 +82,7 @@ std::optional<DeviceConfiguration> device(const TreeItem& item, QString& error) 
             if (entry.name() == QLatin1String("Command") && !command(entry, result, error))
                 return std::nullopt;
     }
-    if (!hasCommands || result.parameters().isEmpty()) {
+    if (result.parameters().isEmpty()) {
         error = QStringLiteral("Device: Commands must contain at least one Command");
         return std::nullopt;
     }

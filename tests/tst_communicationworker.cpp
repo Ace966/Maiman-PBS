@@ -10,6 +10,7 @@
 #include <QtTest>
 #include <cstring>
 #include <memory>
+#include <limits>
 
 using Outcome=CommunicationWorker::Outcome;
 using Result=CommunicationWorker::Result;
@@ -17,6 +18,10 @@ namespace {
 struct State {
     QMutex mutex;
     QWaitCondition changed;
+    QElapsedTimer clock;
+    QList<qint64> submissionNs;
+    QHash<quint64,qint64> completionNs;
+    State() { clock.start(); }
     QByteArray output, incoming, early;
     QString error;
     qint64 pending{0};
@@ -27,6 +32,19 @@ struct State {
     QByteArray bytes() {QMutexLocker lock(&mutex);return output;}
     int attemptCount(){QMutexLocker lock(&mutex);return attempts;}
     int readCount(){QMutexLocker lock(&mutex);return readCalls;}
+    int submissions() {
+        QMutexLocker lock(&mutex);
+        return submissionNs.size();
+    }
+    qint64 submitted(int i) {
+        QMutexLocker lock(&mutex);
+        return submissionNs.at(i);
+    }
+    qint64 completed(quint64 id) {
+        QMutexLocker lock(&mutex);
+        return completionNs.value(id, -1);
+    }
+    qint64 now() { return clock.nsecsElapsed(); }
     // Controllers call these under mutex; they never invoke the transport QObject.
     void input(const QByteArray& data){if(opened)incoming+=data;}
     void drain(){pending=0;}
@@ -48,7 +66,9 @@ public:
         check();QMutexLocker lock(&s->mutex);++s->attempts;
         if(s->failWrite){s->error="write failed";return -1;}
         if(s->stall)return 0;
-        const auto count=qMin<qsizetype>(s->maximum,bytes.size());s->output+=bytes.first(count);
+        const auto count=qMin<qsizetype>(s->maximum,bytes.size());
+        if(count>0)s->submissionNs.append(s->clock.nsecsElapsed());
+        s->output+=bytes.first(count);
         if(s->buffered)s->pending+=count;
         if(!s->early.isEmpty()){s->input(s->early);s->early.clear();}
         return count;
@@ -92,6 +112,14 @@ struct Fixture {
     QSignalSpy observed{&connection,&CommunicationConnection::responseReceived};
     QSignalSpy discarded{&connection,&CommunicationConnection::framesDiscarded};
     QSignalSpy changes{&connection,&CommunicationConnection::connectionChanged};
+    Fixture(){
+        auto* worker=connection.findChild<CommunicationWorker*>();
+        QObject::connect(worker,&CommunicationWorker::requestFinished,&connection,[s=state](const Result& result){
+            const auto now = s->clock.nsecsElapsed();
+            QMutexLocker lock(&s->mutex);
+            s->completionNs.insert(result.id, now);
+        },Qt::DirectConnection);
+    }
     ~Fixture(){connection.shutdown();}
     void open(){if(!connection.connectPort({"FAKE",115200}))qFatal("Fixture connect rejected");}
     void post(std::function<void(State&)> fn) {QMutexLocker lock(&state->mutex);fn(*state);state->changed.wakeAll();}
@@ -105,6 +133,18 @@ class CommunicationWorkerTests:public QObject {
 private slots:
     void typedSettings_data();void typedSettings();
     void idleUsesSemaphore();void shutdownInterruptsLongWait();
+    void timingConfiguration();
+    void timingZero_data();
+    void timingZero();
+    void timingMinimum_data();
+    void timingMinimum();
+    void timingIdle();
+    void timingPriority();
+    void timingQueuedCancel();
+    void timingLifecycle_data();
+    void timingLifecycle();
+    void timingTimeoutIndependence();
+    void timingWakeupsNearExpiry();
     void readFragmented();void priorityAndFifo();void duplicateFramesCannotCompleteNext();
     void responseKinds_data();void responseKinds();void unexpectedAndMalformed();
     void standardWrite();void partialOutput_data();void partialOutput();void earlyResponse();
@@ -259,5 +299,267 @@ void CommunicationWorkerTests::shutdownInterruptsLongWait(){Fixture f;f.open();Q
     const auto id=f.connection.read(1,10000);QTRY_COMPARE(f.sent.size(),1);QElapsedTimer elapsed;elapsed.start();f.connection.shutdown();
     QVERIFY(elapsed.elapsed()<1000);QCOMPARE(f.results.size(),1);QCOMPARE(f.result(0).id,id);QCOMPARE(f.result(0).outcome,Outcome::Cancelled);f.exactlyOnce();
 }
+
+void CommunicationWorkerTests::timingConfiguration() {
+    Fixture f;
+    QVERIFY(!f.connection.setInterCommandDelayMs(-1));
+    QVERIFY(!f.connection.lastSubmissionError().isEmpty());
+    QVERIFY(f.connection.setInterCommandDelayMs(std::numeric_limits<int>::max()));
+    QVERIFY(f.connection.setInterCommandDelayMs(0));
+    QVERIFY(f.connection.lastSubmissionError().isEmpty());
+    f.open();
+    QVERIFY(!f.connection.setInterCommandDelayMs(1)); // Opening is still pending in the caller.
+    QTRY_VERIFY(f.connection.isConnected());
+    QVERIFY(!f.connection.setInterCommandDelayMs(1));
+    QVERIFY(f.connection.disconnectPort());
+    QVERIFY(!f.connection.setInterCommandDelayMs(1));
+    QTRY_COMPARE(f.changes.size(), 2);
+    QVERIFY(f.connection.setInterCommandDelayMs(25));
+    f.connection.shutdown();
+    QVERIFY(!f.connection.setInterCommandDelayMs(0));
+}
+
+void CommunicationWorkerTests::timingZero_data() {
+    QTest::addColumn<bool>("explicitZero");
+    QTest::newRow("default") << false;
+    QTest::newRow("explicit-zero") << true;
+}
+
+void CommunicationWorkerTests::timingZero() {
+    QFETCH(bool, explicitZero);
+    Fixture f;
+    if (explicitZero)
+        QVERIFY(f.connection.setInterCommandDelayMs(0));
+    f.open();
+    QTRY_VERIFY(f.connection.isConnected());
+    const auto a = f.connection.write(1, 1), b = f.connection.write(2, 2);
+    QVERIFY(a && b);
+    QTRY_COMPARE(f.results.size(), 2);
+    QCOMPARE(f.state->submissions(), 2);
+    QCOMPARE(f.result(0).outcome, Outcome::BytesSent);
+    QCOMPARE(f.result(1).outcome, Outcome::BytesSent);
+    const auto gap = f.state->submitted(1) - f.state->completed(a);
+    QVERIFY(gap >= 0);
+    QVERIFY(gap < 200000000);
+    f.exactlyOnce();
+}
+
+void CommunicationWorkerTests::timingMinimum_data() {
+    QTest::addColumn<bool>("writing");
+    QTest::newRow("read-completion") << false;
+    QTest::newRow("write-drain") << true;
+}
+
+void CommunicationWorkerTests::timingMinimum() {
+    QFETCH(bool, writing);
+    constexpr int delay = 120;
+    Fixture f;
+    QVERIFY(f.connection.setInterCommandDelayMs(delay));
+    QVERIFY(!f.connection.setInterCommandDelayMs(-1));
+    f.state->buffered = writing;
+    f.open();
+    QTRY_VERIFY(f.connection.isConnected());
+    const auto first = writing ? f.connection.write(1, 1) : f.connection.read(1);
+    QVERIFY(first);
+    QTRY_COMPARE(f.state->submissions(), 1);
+    const auto next = f.connection.write(2, 2);
+    QVERIFY(next);
+    QTest::qWait(delay + 50);
+    QCOMPARE(f.results.size(), 0);
+    QCOMPARE(f.state->submissions(), 1);
+    if (writing)
+        f.post([](State& s) {
+            s.buffered = false;
+            s.drain();
+        });
+    else
+        f.input("K0001 002A\r");
+    QTRY_COMPARE(f.results.size(), 2);
+    QCOMPARE(f.state->submissions(), 2);
+    QCOMPARE(f.result(0).id, first);
+    QCOMPARE(f.result(0).outcome, writing ? Outcome::BytesSent : Outcome::ReadResponse);
+    QCOMPARE(f.result(1).id, next);
+    QCOMPARE(f.result(1).outcome, Outcome::BytesSent);
+    const auto gap = f.state->submitted(1) - f.state->completed(first);
+    QVERIFY2(gap >= qint64(delay - 10) * 1000000, qPrintable(QString::number(gap)));
+    QVERIFY(gap < qint64(delay + 1000) * 1000000);
+    f.exactlyOnce();
+}
+
+void CommunicationWorkerTests::timingIdle() {
+    constexpr int delay = 300;
+    Fixture f;
+    QVERIFY(f.connection.setInterCommandDelayMs(delay));
+    f.open();
+    QTRY_VERIFY(f.connection.isConnected());
+    const auto first = f.connection.write(1, 1);
+    QVERIFY(first);
+    QTRY_COMPARE(f.results.size(), 1);
+    QTest::qWait(delay + 100);
+    const auto ready = f.state->now();
+    QVERIFY(f.connection.write(2, 2));
+    QTRY_COMPARE(f.results.size(), 2);
+    const auto submitted = f.state->submitted(1);
+    QVERIFY(submitted - f.state->completed(first) >= qint64(delay) * 1000000);
+    QVERIFY(submitted - ready < 150000000);
+    f.exactlyOnce();
+}
+
+void CommunicationWorkerTests::timingPriority() {
+    constexpr int delay = 180;
+    Fixture f;
+    QVERIFY(f.connection.setInterCommandDelayMs(delay));
+    f.open();
+    QTRY_VERIFY(f.connection.isConnected());
+    const auto active = f.connection.read(0x1000);
+    QTRY_COMPARE(f.state->submissions(), 1);
+    const auto r1 = f.connection.read(0x1001), r2 = f.connection.read(0x1002);
+    QVERIFY(active && r1 && r2);
+    f.input("K1000 0001\r");
+    QTRY_COMPARE(f.results.size(), 1);
+    QTest::qWait(20);
+    QCOMPARE(f.state->submissions(), 1); // Reads remain queued during the gap.
+    const auto w1 = f.connection.write(0x2001, 1), w2 = f.connection.write(0x2002, 2);
+    QVERIFY(w1 && w2);
+    QTRY_COMPARE(f.state->bytes(), QByteArray("J1000\rP2001 0001\rP2002 0002\rJ1001\r"));
+    f.input("K1001 0002\r");
+    QTRY_VERIFY(f.state->bytes().endsWith("J1002\r"));
+    f.input("K1002 0003\r");
+    QTRY_COMPARE(f.results.size(), 5);
+    const QList<quint64> expected{active, w1, w2, r1, r2};
+    for (int i = 0; i < 5; ++i) {
+        QCOMPARE(f.result(i).id, expected[i]);
+        if (i)
+            QVERIFY(f.state->submitted(i) - f.state->completed(expected[i - 1]) >= qint64(delay - 10) * 1000000);
+    }
+    f.exactlyOnce();
+}
+
+void CommunicationWorkerTests::timingQueuedCancel() {
+    Fixture f;
+    QVERIFY(f.connection.setInterCommandDelayMs(5000));
+    f.open();
+    QTRY_VERIFY(f.connection.isConnected());
+    QVERIFY(f.connection.write(1, 1));
+    QTRY_COMPARE(f.results.size(), 1);
+    const auto queued = f.connection.read(2);
+    QVERIFY(queued);
+    QTest::qWait(40);
+    QCOMPARE(f.state->submissions(), 1);
+    QElapsedTimer elapsed;
+    elapsed.start();
+    QVERIFY(f.connection.cancel(queued));
+    QTRY_COMPARE(f.results.size(), 2);
+    QVERIFY(elapsed.elapsed() < 1000);
+    QCOMPARE(f.result(1).id, queued);
+    QCOMPARE(f.result(1).outcome, Outcome::Cancelled);
+    QVERIFY(f.connection.isConnected());
+    QCOMPARE(f.state->submissions(), 1);
+    QCOMPARE(f.connection.outstanding(), 0);
+    f.exactlyOnce();
+}
+
+void CommunicationWorkerTests::timingLifecycle_data() {
+    QTest::addColumn<int>("operation");
+    QTest::newRow("disconnect-reconnect") << 0;
+    QTest::newRow("shutdown") << 1;
+    QTest::newRow("replace-connection") << 2;
+}
+
+void CommunicationWorkerTests::timingLifecycle() {
+    QFETCH(int, operation);
+    Fixture f;
+    QVERIFY(f.connection.setInterCommandDelayMs(5000));
+    f.open();
+    QTRY_VERIFY(f.connection.isConnected());
+    QVERIFY(f.connection.write(1, 1));
+    QTRY_COMPARE(f.results.size(), 1);
+    const auto queued = f.connection.read(2);
+    QVERIFY(queued);
+    QTest::qWait(40);
+    QCOMPARE(f.state->submissions(), 1);
+    QElapsedTimer elapsed;
+    elapsed.start();
+    if (operation == 1)
+        f.connection.shutdown();
+    else {
+        QVERIFY(operation == 0 ? f.connection.disconnectPort() : f.connection.connectPort({"FAKE_NEW", 9600}));
+        QTRY_COMPARE(f.changes.size(), 2);
+    }
+    QTRY_COMPARE(f.results.size(), 2);
+    QVERIFY(elapsed.elapsed() < 1000);
+    QCOMPARE(f.result(1).id, queued);
+    QCOMPARE(f.result(1).outcome, Outcome::Cancelled);
+    QCOMPARE(f.state->submissions(), 1);
+    if (operation != 1) {
+        if (operation == 0) {
+            f.open();
+            QTRY_VERIFY(f.connection.isConnected());
+        }
+        QVERIFY(f.connection.isConnected());
+        const auto ready = f.state->now();
+        const auto fresh = f.connection.write(3, 3);
+        QVERIFY(fresh > queued);
+        QTRY_COMPARE(f.results.size(), 3);
+        QCOMPARE(f.result(2).id, fresh);
+        QCOMPARE(f.result(2).outcome, Outcome::BytesSent);
+        QVERIFY(f.state->submitted(1) - ready < 500000000); // Old five-second deadline cannot leak into a new session.
+    }
+    f.exactlyOnce();
+}
+
+void CommunicationWorkerTests::timingTimeoutIndependence() {
+    constexpr int delay = 180, timeout = 70;
+    Fixture f;
+    QVERIFY(f.connection.setInterCommandDelayMs(delay));
+    f.state->buffered = true;
+    f.open();
+    QTRY_VERIFY(f.connection.isConnected());
+    const auto first = f.connection.write(1, 1);
+    QVERIFY(first);
+    QTRY_COMPARE(f.state->submissions(), 1);
+    const auto queued = f.connection.read(2, timeout);
+    QVERIFY(queued);
+    QTest::qWait(120);
+    QCOMPARE(f.results.size(), 0);
+    f.post([](State& s) {
+        s.buffered = false;
+        s.drain();
+    });
+    QTRY_COMPARE(f.results.size(), 2);
+    QCOMPARE(f.state->submissions(), 2);
+    QCOMPARE(f.result(0).outcome, Outcome::BytesSent);
+    QCOMPARE(f.result(1).id, queued);
+    QCOMPARE(f.result(1).outcome, Outcome::Timeout);
+    QVERIFY(f.state->submitted(1) - f.state->completed(first) >= qint64(delay - 10) * 1000000);
+    QTRY_VERIFY(f.state->completed(queued) >= 0); // Terminal event delivery can precede the direct timestamp observer.
+    const auto active = f.state->completed(queued) - f.state->submitted(1);
+    QVERIFY(active >= qint64(timeout - 10) * 1000000);
+    QVERIFY(active < 500000000);
+    QVERIFY(!f.connection.isConnected());
+    f.exactlyOnce();
+}
+
+void CommunicationWorkerTests::timingWakeupsNearExpiry() {
+    Fixture f;
+    QVERIFY(f.connection.setInterCommandDelayMs(2));
+    f.open();
+    QTRY_VERIFY(f.connection.isConnected());
+    QList<quint64> accepted;
+    for (int i = 0; i < 40; ++i) {
+        if (const auto id = f.connection.write(quint16(i + 1), 1))
+            accepted.append(id);
+        QTest::qWait(1);
+    }
+    QVERIFY(accepted.size() >= 2);
+    QTRY_COMPARE(f.results.size(), accepted.size());
+    QCOMPARE(f.state->submissions(), accepted.size());
+    for (qsizetype i = 0; i < accepted.size(); ++i) {
+        QCOMPARE(f.result(int(i)).id, accepted[i]);
+        QCOMPARE(f.result(int(i)).outcome, Outcome::BytesSent);
+    }
+    f.exactlyOnce();
+}
+
 QTEST_GUILESS_MAIN(CommunicationWorkerTests)
 #include "tst_communicationworker.moc"

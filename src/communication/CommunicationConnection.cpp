@@ -64,6 +64,17 @@ bool CommunicationConnection::disconnectPort() {
     return true;
 }
 
+bool CommunicationConnection::setInterCommandDelayMs(int delayMs) {
+    checkThread();
+    m_error.clear();
+    if (delayMs < 0 || m_shutdown || m_connected || m_controlPending) {
+        m_error = QStringLiteral("Delay must be nonnegative and configured while disconnected with no pending connection change.");
+        return false;
+    }
+    m_worker->setInterCommandDelayMs(delayMs);
+    return true;
+}
+
 quint64 CommunicationConnection::read(quint16 parameter, int timeoutMs) {
     return submit(CommunicationWorker::Kind::Read, parameter, 0, timeoutMs);
 }

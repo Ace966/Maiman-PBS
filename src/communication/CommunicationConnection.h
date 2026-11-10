@@ -12,6 +12,7 @@ public:
     ~CommunicationConnection() override;
     bool connectPort(const SerialSettings& settings); // True: attempt posted, not yet connected.
     bool disconnectPort();
+    bool setInterCommandDelayMs(int delayMs); // Nonnegative; disconnected, no pending connection change.
     quint64 read(quint16 parameter, int timeoutMs = 1000); // Zero: rejected, no terminal result.
     quint64 write(quint16 parameter, quint16 value, int timeoutMs = 1000);
     bool cancel(quint64 id); // A completion already in flight may win the race.

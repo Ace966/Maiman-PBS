@@ -28,6 +28,11 @@ void CommunicationWorker::disconnectPort(quint64 epoch) {
     wakeLocked();
 }
 
+void CommunicationWorker::setInterCommandDelayMs(int delayMs) {
+    QMutexLocker lock(&m_mutex);
+    m_interCommandDelayMs = delayMs;
+}
+
 void CommunicationWorker::enqueue(const Request& request, quint64 epoch) {
     Outcome rejection = Outcome::NotConnected;
     {
@@ -57,6 +62,7 @@ void CommunicationWorker::cancel(quint64 id) {
             }
             if (removed) break;
         }
+        if (removed) wakeLocked();
     }
     if (removed) complete(*removed, Outcome::Cancelled, QStringLiteral("Queued request cancelled."));
 }
@@ -88,30 +94,39 @@ void CommunicationWorker::run() {
     std::unique_ptr<IDataSource> source;
     PICTextProtocol protocol;
     quint64 epoch = 0;
+    QDeadlineTimer nextCommand(0, Qt::PreciseTimer);
+    bool delayPending = false;
     const auto close = [&] {
         if (source) { source->close(); source.reset(); }
         protocol.reset();
+        nextCommand = QDeadlineTimer(0, Qt::PreciseTimer);
     };
     for (;;) {
-        m_wake.acquire(); // Idle connections never poll the port or need a Qt event loop.
+        // Neither wait holds the state mutex; control/submission wakes interrupt the delay.
+        bool woke = true;
+        if (delayPending) woke = m_wake.tryAcquire(1, nextCommand);
+        else m_wake.acquire();
+        delayPending = false;
         std::optional<Control> control;
         std::optional<Request> request;
         QList<Request> cancelled;
         bool stopping;
         {
             QMutexLocker lock(&m_mutex);
-            m_wakePending = false;
+            if (woke) m_wakePending = false; // Expiry must not clear a concurrent producer's token.
             stopping = m_stopping;
             if (stopping || m_control) {
                 control = std::exchange(m_control, std::nullopt);
                 m_connected = false;
                 cancelled = takeQueuedLocked();
             } else if (m_connected && (!m_writes.isEmpty() || !m_reads.isEmpty())) {
-                request = !m_writes.isEmpty() ? m_writes.dequeue() : m_reads.dequeue();
-                m_activeId = request->id;
-                m_cancelActive = false;
+                if (nextCommand.hasExpired()) {
+                    request = !m_writes.isEmpty() ? m_writes.dequeue() : m_reads.dequeue();
+                    m_activeId = request->id;
+                    m_cancelActive = false;
+                } else delayPending = true; // Still use a timed wait if expiry races the next iteration.
             }
-            if (!stopping && (!m_writes.isEmpty() || !m_reads.isEmpty())) wakeLocked();
+            if (!stopping && !delayPending && (!m_writes.isEmpty() || !m_reads.isEmpty())) wakeLocked();
         }
         if (stopping || control) {
             close();
@@ -156,6 +171,7 @@ void CommunicationWorker::run() {
             closing = result.outcome == Outcome::Timeout || result.outcome == Outcome::TransportError
                 || result.outcome == Outcome::Cancelled;
             if (closing) { m_connected = false; cancelled = takeQueuedLocked(); }
+            else nextCommand = QDeadlineTimer(m_interCommandDelayMs, Qt::PreciseTimer);
         }
         if (closing) {
             close();

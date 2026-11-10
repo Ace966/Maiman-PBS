@@ -48,6 +48,7 @@ private:
     // Thread-safe commands. No slot or queued invocation executes inside run().
     void open(const SerialSettings& settings, quint64 epoch);
     void disconnectPort(quint64 epoch);
+    void setInterCommandDelayMs(int delayMs);
     void enqueue(const Request& request, quint64 epoch);
     void cancel(quint64 id);
     void shutdown();
@@ -63,6 +64,7 @@ private:
         bool opening;
     };
     SourceFactory m_factory;
+    int m_interCommandDelayMs{0};
     QMutex m_mutex;
     QSemaphore m_wake;
     bool m_wakePending{false}, m_stopping{false}, m_connected{false}, m_cancelActive{false};

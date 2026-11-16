@@ -179,7 +179,7 @@ void SerialDataSourceTests::workerOwnershipAndAffinity() {
     CommunicationConnection connection([&s]{return new Source(s);});
     QSignalSpy results(&connection,&CommunicationConnection::requestFinished);
     QVERIFY(connection.connectPort({"FAKE",115200})); QTRY_VERIFY(connection.isConnected());
-    const auto id=connection.write(0x0017,900); QVERIFY(id); QTRY_COMPARE(results.size(),1);
+    QVERIFY(connection.write(0x0017,900)); QTRY_COMPARE(results.size(),1);
     QCOMPARE(qvariant_cast<CommunicationWorker::Result>(results[0][0]).outcome,CommunicationWorker::Outcome::BytesSent);
     QVERIFY(connection.read(0x0017));QTRY_COMPARE(results.size(),2);
     QCOMPARE(qvariant_cast<CommunicationWorker::Result>(results[1][0]).value,quint16(356));

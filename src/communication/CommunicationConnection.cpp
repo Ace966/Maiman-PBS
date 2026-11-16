@@ -2,7 +2,6 @@
 #include "serialdatasource.h"
 #include <QCoreApplication>
 #include <QEvent>
-#include <limits>
 #include <utility>
 
 CommunicationConnection::CommunicationConnection(CommunicationWorker::SourceFactory factory, QObject* parent)
@@ -17,16 +16,24 @@ CommunicationConnection::CommunicationConnection(CommunicationWorker::SourceFact
 }
 
 CommunicationConnection::~CommunicationConnection() { shutdown(); }
-void CommunicationConnection::onConnectionChanged(bool connected, const QString& error, quint64 epoch) {
-    if (m_shutdown || epoch != m_epoch) return;
+void CommunicationConnection::onConnectionChanged(bool connected, const QString& error) {
+    if (m_shutdown) return;
     m_connected = connected;
     m_controlPending = false;
     emit connectionChanged(connected, error);
 }
 
 void CommunicationConnection::onRequestFinished(const CommunicationWorker::Result& result) {
-    m_requests.remove(result.id);
+    (result.kind == CommunicationWorker::Kind::Read ? m_reads : m_writes)--;
+    // Old transaction results precede a pending control's acknowledgement in the Worker stream.
+    const bool disconnected = !m_shutdown && !m_controlPending && m_connected
+        && (result.outcome == CommunicationWorker::Outcome::Timeout
+            || result.outcome == CommunicationWorker::Outcome::TransportError);
+    if (disconnected) m_connected = false;
     emit requestFinished(result);
+    // A result callback may start a new control or shut down before this notification.
+    if (disconnected && !m_shutdown && !m_controlPending && !m_connected)
+        emit connectionChanged(false, result.error);
 }
 
 bool CommunicationConnection::connectPort(const SerialSettings& settings) {
@@ -39,25 +46,21 @@ bool CommunicationConnection::connectPort(const SerialSettings& settings) {
         m_error = QStringLiteral("Expected explicit nonblank comport without NUL and positive baudrate.");
         return false;
     }
-    if (m_epoch == std::numeric_limits<quint64>::max()) {
-        m_error = QStringLiteral("Session IDs exhausted.");
-        return false;
-    }
     m_connected = false;
     m_controlPending = true;
-    m_worker->open(settings, ++m_epoch);
+    m_worker->open(settings);
     return true;
 }
 
 bool CommunicationConnection::disconnectPort() {
     m_error.clear();
-    if (m_shutdown || m_controlPending || m_epoch == std::numeric_limits<quint64>::max()) {
+    if (m_shutdown || m_controlPending) {
         m_error = QStringLiteral("Connection change unavailable or pending.");
         return false;
     }
     m_connected = false;
     m_controlPending = true;
-    m_worker->disconnectPort(++m_epoch);
+    m_worker->disconnectPort();
     return true;
 }
 
@@ -71,37 +74,21 @@ bool CommunicationConnection::setInterCommandDelayMs(int delayMs) {
     return true;
 }
 
-quint64 CommunicationConnection::read(quint16 parameter, int timeoutMs) {
+bool CommunicationConnection::read(quint16 parameter, int timeoutMs) {
     return submit(CommunicationWorker::Kind::Read, parameter, 0, timeoutMs);
 }
-quint64 CommunicationConnection::write(quint16 parameter, quint16 value, int timeoutMs) {
+bool CommunicationConnection::write(quint16 parameter, quint16 value, int timeoutMs) {
     return submit(CommunicationWorker::Kind::Write, parameter, value, timeoutMs);
 }
-quint64 CommunicationConnection::submit(CommunicationWorker::Kind kind, quint16 parameter, quint16 value, int timeoutMs) {
+bool CommunicationConnection::submit(CommunicationWorker::Kind kind, quint16 parameter, quint16 value, int timeoutMs) {
     m_error.clear();
-    int count = 0;
-    for (const auto& pending : m_requests)
-        if (pending.kind == kind) ++count;
-    if (m_shutdown || !m_connected || timeoutMs <= 0 || count == CommunicationWorker::QueueCapacity
-        || m_nextId == std::numeric_limits<quint64>::max()) {
-        m_error = QStringLiteral("Not connected, nonpositive timeout, capacity reached or IDs exhausted.");
-        return 0;
-    }
-    const CommunicationWorker::Request request{++m_nextId, kind, parameter, value, timeoutMs};
-    m_requests.insert(request.id, Pending{kind});
-    m_worker->enqueue(request);
-    return request.id;
-}
-
-bool CommunicationConnection::cancel(quint64 id) {
-    m_error.clear();
-    auto pending = m_requests.find(id);
-    if (m_shutdown || pending == m_requests.end() || pending->cancelling) {
-        m_error = QStringLiteral("Request is unavailable or cancellation already pending.");
+    auto& count = kind == CommunicationWorker::Kind::Read ? m_reads : m_writes;
+    if (m_shutdown || !m_connected || timeoutMs <= 0 || count == CommunicationWorker::QueueCapacity) {
+        m_error = QStringLiteral("Not connected, nonpositive timeout or capacity reached.");
         return false;
     }
-    pending->cancelling = true;
-    m_worker->cancel(id);
+    ++count;
+    m_worker->enqueue(CommunicationWorker::Request{kind, parameter, value, timeoutMs});
     return true;
 }
 
@@ -112,5 +99,5 @@ void CommunicationConnection::shutdown() {
     m_worker->shutdown();
     m_worker->wait(); // Bounded transport waits return to run() to observe shutdown.
     QCoreApplication::sendPostedEvents(this, QEvent::MetaCall); // Deliver every admitted terminal result before destruction.
-    Q_ASSERT(m_requests.isEmpty());
+    Q_ASSERT(m_reads == 0 && m_writes == 0);
 }

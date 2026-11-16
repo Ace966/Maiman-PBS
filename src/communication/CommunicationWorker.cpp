@@ -12,18 +12,18 @@ void CommunicationWorker::wakeLocked() {
     if (!m_wakePending) { m_wakePending = true; m_wake.release(); }
 }
 
-void CommunicationWorker::open(const SerialSettings& settings, quint64 epoch) {
+void CommunicationWorker::open(const SerialSettings& settings) {
     QMutexLocker lock(&m_mutex);
     if (m_stopping) return;
-    m_control = Control{settings, epoch, true};
+    m_control = Control{settings, true};
     m_connected = false;
     wakeLocked();
 }
 
-void CommunicationWorker::disconnectPort(quint64 epoch) {
+void CommunicationWorker::disconnectPort() {
     QMutexLocker lock(&m_mutex);
     if (m_stopping) return;
-    m_control = Control{{}, epoch, false};
+    m_control = Control{{}, false};
     m_connected = false;
     wakeLocked();
 }
@@ -47,23 +47,6 @@ void CommunicationWorker::enqueue(const Request& request) {
     complete(request, Outcome::NotConnected, QStringLiteral("Connection is not available."));
 }
 
-void CommunicationWorker::cancel(quint64 id) {
-    std::optional<Request> removed;
-    {
-        QMutexLocker lock(&m_mutex);
-        if (m_activeId == id) { m_cancelActive = true; wakeLocked(); return; }
-        for (auto* queue : {&m_writes, &m_reads}) {
-            for (qsizetype i = 0; i < queue->size(); ++i) if (queue->at(i).id == id) {
-                removed = queue->takeAt(i);
-                break;
-            }
-            if (removed) break;
-        }
-        if (removed) wakeLocked();
-    }
-    if (removed) complete(*removed, Outcome::Cancelled, QStringLiteral("Queued request cancelled."));
-}
-
 void CommunicationWorker::shutdown() {
     QMutexLocker lock(&m_mutex);
     m_stopping = true;
@@ -73,7 +56,7 @@ void CommunicationWorker::shutdown() {
 
 bool CommunicationWorker::interrupted() {
     QMutexLocker lock(&m_mutex);
-    return m_stopping || m_control.has_value() || m_cancelActive;
+    return m_stopping || m_control.has_value();
 }
 
 QList<CommunicationWorker::Request> CommunicationWorker::takeQueuedLocked() {
@@ -84,13 +67,12 @@ QList<CommunicationWorker::Request> CommunicationWorker::takeQueuedLocked() {
 }
 
 void CommunicationWorker::complete(const Request& request, Outcome outcome, const QString& error) {
-    emit requestFinished(Result{request.id, request.kind, request.parameter, request.value, outcome, 0, error});
+    emit requestFinished(Result{request.kind, request.parameter, request.value, outcome, 0, error});
 }
 
 void CommunicationWorker::run() {
     std::unique_ptr<IDataSource> source;
     PICTextProtocol protocol;
-    quint64 epoch = 0;
     QDeadlineTimer nextCommand(0, Qt::PreciseTimer);
     bool delayPending = false;
     const auto close = [&] {
@@ -119,8 +101,6 @@ void CommunicationWorker::run() {
             } else if (m_connected && (!m_writes.isEmpty() || !m_reads.isEmpty())) {
                 if (nextCommand.hasExpired()) {
                     request = !m_writes.isEmpty() ? m_writes.dequeue() : m_reads.dequeue();
-                    m_activeId = request->id;
-                    m_cancelActive = false;
                 } else delayPending = true; // Still use a timed wait if expiry races the next iteration.
             }
             if (!stopping && !delayPending && (!m_writes.isEmpty() || !m_reads.isEmpty())) wakeLocked();
@@ -130,8 +110,7 @@ void CommunicationWorker::run() {
             const auto reason = stopping ? QStringLiteral("Connection shut down.")
                 : control->opening ? QStringLiteral("Connection replaced.") : QStringLiteral("Disconnected.");
             for (const auto& queued : cancelled) complete(queued, Outcome::Cancelled, reason);
-            if (stopping) { emit connectionChanged(false, reason, epoch); return; }
-            epoch = control->epoch;
+            if (stopping) return;
             bool opened = false;
             QString error;
             if (control->opening) {
@@ -147,7 +126,7 @@ void CommunicationWorker::run() {
                 QMutexLocker lock(&m_mutex);
                 m_connected = opened && !m_stopping;
             }
-            emit connectionChanged(opened, error, epoch);
+            emit connectionChanged(opened, error);
             continue;
         }
         if (!request) continue;
@@ -155,24 +134,19 @@ void CommunicationWorker::run() {
         bool closing;
         {
             QMutexLocker lock(&m_mutex);
-            // Completion and cancellation have one mutex-protected decision point.
-            if (m_stopping || m_control || m_cancelActive) {
+            // Completion and connection teardown have one mutex-protected decision point.
+            if (m_stopping || m_control) {
                 result.outcome = Outcome::Cancelled;
                 result.value = request->value;
                 result.errorCode = 0;
-                result.error = QStringLiteral("Active request cancelled; explicit reconnect required.");
+                result.error = QStringLiteral("Connection interrupted the active transaction.");
             }
-            m_activeId = 0;
-            m_cancelActive = false;
             closing = result.outcome == Outcome::Timeout || result.outcome == Outcome::TransportError
                 || result.outcome == Outcome::Cancelled;
             if (closing) { m_connected = false; cancelled = takeQueuedLocked(); }
             else nextCommand = QDeadlineTimer(m_interCommandDelayMs, Qt::PreciseTimer);
         }
-        if (closing) {
-            close();
-            emit connectionChanged(false, result.error, epoch);
-        }
+        if (closing) close();
         emit requestFinished(result);
         for (const auto& queued : cancelled) complete(queued, Outcome::Cancelled, result.error);
     }
@@ -181,14 +155,14 @@ void CommunicationWorker::run() {
 CommunicationWorker::Result CommunicationWorker::transact(
     IDataSource& source, PICTextProtocol& protocol, const Request& request) {
     QDeadlineTimer deadline(request.timeoutMs, Qt::PreciseTimer);
-    Result result{request.id, request.kind, request.parameter, request.value, Outcome::BytesSent, 0, {}};
+    Result result{request.kind, request.parameter, request.value, Outcome::BytesSent, 0, {}};
     std::optional<PICTextProtocol::Response> response;
     const auto fail = [&](Outcome outcome, const QString& error) {
         result.outcome = outcome; result.error = error;
         return false;
     };
     const auto check = [&] {
-        if (interrupted()) return fail(Outcome::Cancelled, QStringLiteral("Active request cancelled; explicit reconnect required."));
+        if (interrupted()) return fail(Outcome::Cancelled, QStringLiteral("Connection interrupted the active transaction."));
         if (deadline.hasExpired()) return fail(Outcome::Timeout, QStringLiteral("Transaction deadline expired; explicit reconnect required."));
         if (source.hasError()) return fail(Outcome::TransportError, source.errorString());
         return true;

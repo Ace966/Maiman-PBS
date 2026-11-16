@@ -20,14 +20,12 @@ public:
     enum class Outcome { ReadResponse, BytesSent, DeviceError, NonexistentParameter,
                          Timeout, TransportError, Cancelled, NotConnected };
     struct Request {
-        quint64 id;
         Kind kind;
         quint16 parameter;
         quint16 value;
         int timeoutMs;
     };
     struct Result {
-        quint64 id;
         Kind kind;
         quint16 parameter;
         quint16 value; // Raw value on ReadResponse; otherwise the submitted value.
@@ -36,18 +34,18 @@ public:
         QString error;
     };
 signals:
-    void connectionChanged(bool connected, const QString& error, quint64 epoch);
+    // Acknowledges an open/disconnect control after all old transaction results.
+    void connectionChanged(bool connected, const QString& error);
     void requestFinished(const CommunicationWorker::Result& result);
 private:
     friend class CommunicationConnection;
     explicit CommunicationWorker(SourceFactory factory, QObject* parent);
     ~CommunicationWorker() override;
     // Thread-safe commands. No slot or queued invocation executes inside run().
-    void open(const SerialSettings& settings, quint64 epoch);
-    void disconnectPort(quint64 epoch);
+    void open(const SerialSettings& settings);
+    void disconnectPort();
     void setInterCommandDelayMs(int delayMs);
     void enqueue(const Request& request);
-    void cancel(quint64 id);
     void shutdown();
     void run() override;
     Result transact(IDataSource& source, PICTextProtocol& protocol, const Request& request);
@@ -57,15 +55,13 @@ private:
     void complete(const Request& request, Outcome outcome, const QString& error);
     struct Control {
         SerialSettings settings;
-        quint64 epoch;
         bool opening;
     };
     SourceFactory m_factory;
     int m_interCommandDelayMs{0};
     QMutex m_mutex;
     QSemaphore m_wake;
-    bool m_wakePending{false}, m_stopping{false}, m_connected{false}, m_cancelActive{false};
-    quint64 m_activeId{0};
+    bool m_wakePending{false}, m_stopping{false}, m_connected{false};
     std::optional<Control> m_control;
     QQueue<Request> m_reads, m_writes;
 };

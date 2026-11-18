@@ -36,6 +36,7 @@ bool command(const TreeItem& item, DeviceConfiguration& configuration, QString& 
     }
     ParameterDefinition definition;
     if (const auto* unit = child(item, "unit")) definition.unit = unit->value();
+    definition.isSigned = child(item, "isSigned") != nullptr;
     if (const auto* field = child(item, "divider")) {
         bool ok = false;
         const auto divider = field->value().toDouble(&ok);

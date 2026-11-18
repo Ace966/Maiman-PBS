@@ -3,13 +3,12 @@
 #include <QMap>
 #include <QString>
 #include <QtGlobal>
-#include <optional>
-
 
 struct ParameterDefinition {
     QString unit;
-    double scale{1.0}; // Physical value = raw * scale; metadata only.
-    quint8 tolerance{0}; // decimal display precision, not accuracy.
+    double scale{1.0}; // Physical value = interpreted raw * scale; metadata only.
+    quint8 tolerance{0}; // MultiBench tol: decimal display precision, not accuracy.
+    bool isSigned{false};
 };
 
 // Definitions only; register IDs are unique map keys, not duplicated in metadata.

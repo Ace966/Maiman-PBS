@@ -43,6 +43,7 @@ private slots:
     void completeCatalog();
     void genericModelAndRepository();
     void optionalMetadata();
+    void signedMarker_data();void signedMarker();
     void hexIdsAndSignedDivider();
     void numericBoundaries();
     void treeFieldRepresentation();
@@ -74,8 +75,10 @@ void XmlConfigLoaderTests::completeCatalog() {
     QCOMPARE(result->modelId(), id); QCOMPARE(result->modelName(), name);
     QCOMPARE(result->parameters().size(), count);
     QCOMPARE(metadataHash(*result), hash);
-    for (const auto& parameter : result->parameters())
+    for (const auto& parameter : result->parameters()) {
         QCOMPARE(parameter.tolerance, quint8(parameter.scale == 0.01 ? 2 : parameter.scale == 0.1 ? 1 : 0));
+        QVERIFY(!parameter.isSigned);
+    }
     QCOMPARE(result->parameters().value(0x0017).scale * 356, 3.56);
     QCOMPARE(result->parameters().value(0x0017).scale * 900, 9.0);
     QVERIFY(result->parameters().contains(0x0701));
@@ -104,11 +107,11 @@ void XmlConfigLoaderTests::genericModelAndRepository() {
     auto first = makeRepository(); auto second = first;
     QCOMPARE(first.configuration().modelName(), QStringLiteral("Example"));
     QVERIFY(!first.configuration().parameters().contains(0x0043));
-    QVERIFY(!first.value(0x0042).has_value());
+    QVERIFY(!first.value(0x0042).isValid());
     QVERIFY(first.update(0x0042, 65535)); QVERIFY(second.update(0x0042, 0));
-    QCOMPARE(first.value(0x0042).value(), quint16(65535)); QCOMPARE(second.value(0x0042).value(), quint16(0));
+    QCOMPARE(first.value(0x0042).toDouble(), 655.35); QCOMPARE(second.value(0x0042).toDouble(), 0.0);
     QVERIFY(!first.update(0x7777, 10)); first.clear();
-    QVERIFY(!first.value(0x0042)); QCOMPARE(second.value(0x0042).value(), quint16(0));
+    QVERIFY(!first.value(0x0042).isValid()); QCOMPARE(second.value(0x0042).toDouble(), 0.0);
     QCOMPARE(first.configuration().modelId(), quint16(0x2222));
 }
 
@@ -117,6 +120,7 @@ void XmlConfigLoaderTests::optionalMetadata() {
     QVERIFY(result);
     const auto definition = result->parameters().value(0x0042);
     QVERIFY(definition.unit.isEmpty());
+    QVERIFY(!definition.isSigned);
     QCOMPARE(definition.scale, 1.0); QCOMPARE(definition.tolerance, quint8(0));
 }
 
@@ -238,6 +242,32 @@ void XmlConfigLoaderTests::errorOutputAndRetry() {
     QString error = QStringLiteral("previous error");
     QVERIFY(loadText(minimal(), &error)); QVERIFY(error.isEmpty());
     QVERIFY(loadText(minimal(), nullptr));
+}
+
+void XmlConfigLoaderTests::signedMarker_data() {
+    QTest::addColumn<QByteArray>("marker"); QTest::addColumn<bool>("isSigned");
+    QTest::newRow("missing") << QByteArray() << false;
+    QTest::newRow("empty-presence") << QByteArray(" isSigned=\"\"") << true;
+    QTest::newRow("presence-not-boolean") << QByteArray(" isSigned=\"false\"") << true;
+}
+
+void XmlConfigLoaderTests::signedMarker() {
+    QFETCH(QByteArray, marker); QFETCH(bool, isSigned);
+    const auto xml = minimal().replace("code=\"0042\"", "code=\"0042\"" + marker)
+        .replace("divider=\"100\"", "divider=\"10\"").replace("tol=\"2\"", "tol=\"1\"");
+    const auto config = loadText(xml);
+    QVERIFY(config);
+    const auto metadata = config->parameters().value(0x0042);
+    QCOMPARE(metadata.isSigned, isSigned); QCOMPARE(metadata.scale, 0.1);
+    QCOMPARE(metadata.unit, QStringLiteral("V")); QCOMPARE(metadata.tolerance, quint8(1));
+    DeviceRepository repository(*config);
+    QVERIFY(!repository.value(0x0042).isValid());
+    QVERIFY(repository.update(0x0042, 0xff9c));
+    QCOMPARE(repository.value(0x0042).toDouble(), isSigned ? -10.0 : 6543.6);
+    if (isSigned) {
+        const auto raw = repository.toRaw(0x0042, -10.0);
+        QVERIFY(raw); QCOMPARE(*raw, quint16(0xff9c));
+    }
 }
 
 QTEST_GUILESS_MAIN(XmlConfigLoaderTests)

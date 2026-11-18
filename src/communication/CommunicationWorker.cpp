@@ -44,7 +44,7 @@ void CommunicationWorker::enqueue(const Request& request) {
             return;
         }
     }
-    complete(request, Outcome::NotConnected, QStringLiteral("Connection is not available."));
+    complete(request, Outcome::NotConnected);
 }
 
 void CommunicationWorker::shutdown() {
@@ -54,11 +54,6 @@ void CommunicationWorker::shutdown() {
     wakeLocked();
 }
 
-bool CommunicationWorker::interrupted() {
-    QMutexLocker lock(&m_mutex);
-    return m_stopping || m_control.has_value();
-}
-
 QList<CommunicationWorker::Request> CommunicationWorker::takeQueuedLocked() {
     QList<Request> requests;
     while (!m_writes.isEmpty()) requests.append(m_writes.dequeue());
@@ -66,8 +61,8 @@ QList<CommunicationWorker::Request> CommunicationWorker::takeQueuedLocked() {
     return requests;
 }
 
-void CommunicationWorker::complete(const Request& request, Outcome outcome, const QString& error) {
-    emit requestFinished(Result{request.kind, request.parameter, request.value, outcome, 0, error});
+void CommunicationWorker::complete(const Request& request, Outcome outcome) {
+    emit requestFinished(Result{request.kind, request.parameter, request.value, outcome, 0, {}});
 }
 
 void CommunicationWorker::run() {
@@ -107,21 +102,18 @@ void CommunicationWorker::run() {
         }
         if (stopping || control) {
             close();
-            const auto reason = stopping ? QStringLiteral("Connection shut down.")
-                : control->opening ? QStringLiteral("Connection replaced.") : QStringLiteral("Disconnected.");
-            for (const auto& queued : cancelled) complete(queued, Outcome::Cancelled, reason);
+            for (const auto& queued : cancelled) complete(queued, Outcome::Cancelled);
             if (stopping) return;
             bool opened = false;
             QString error;
             if (control->opening) {
                 source.reset(m_factory());
                 if (source) {
-                    Q_ASSERT(source->thread() == QThread::currentThread() && !source->parent());
                     opened = source->open(control->settings);
                     if (!opened) error = source->errorString();
                 } else error = QStringLiteral("Source factory returned no source.");
                 if (!opened) close();
-            } else error = reason;
+            }
             {
                 QMutexLocker lock(&m_mutex);
                 m_connected = opened && !m_stopping;
@@ -139,7 +131,7 @@ void CommunicationWorker::run() {
                 result.outcome = Outcome::Cancelled;
                 result.value = request->value;
                 result.errorCode = 0;
-                result.error = QStringLiteral("Connection interrupted the active transaction.");
+                result.error.clear();
             }
             closing = result.outcome == Outcome::Timeout || result.outcome == Outcome::TransportError
                 || result.outcome == Outcome::Cancelled;
@@ -148,7 +140,7 @@ void CommunicationWorker::run() {
         }
         if (closing) close();
         emit requestFinished(result);
-        for (const auto& queued : cancelled) complete(queued, Outcome::Cancelled, result.error);
+        for (const auto& queued : cancelled) complete(queued, Outcome::Cancelled);
     }
 }
 
@@ -157,25 +149,40 @@ CommunicationWorker::Result CommunicationWorker::transact(
     QDeadlineTimer deadline(request.timeoutMs, Qt::PreciseTimer);
     Result result{request.kind, request.parameter, request.value, Outcome::BytesSent, 0, {}};
     std::optional<PICTextProtocol::Response> response;
-    const auto fail = [&](Outcome outcome, const QString& error) {
-        result.outcome = outcome; result.error = error;
-        return false;
-    };
     const auto check = [&] {
-        if (interrupted()) return fail(Outcome::Cancelled, QStringLiteral("Connection interrupted the active transaction."));
-        if (deadline.hasExpired()) return fail(Outcome::Timeout, QStringLiteral("Transaction deadline expired; explicit reconnect required."));
-        if (source.hasError()) return fail(Outcome::TransportError, source.errorString());
+        {
+            QMutexLocker lock(&m_mutex);
+            if (m_stopping || m_control) {
+                result.outcome = Outcome::Cancelled;
+                return false;
+            }
+        }
+        if (deadline.hasExpired()) {
+            result.outcome = Outcome::Timeout;
+            return false;
+        }
+        if (source.hasError()) {
+            result.outcome = Outcome::TransportError;
+            result.error = source.errorString();
+            return false;
+        }
         return true;
     };
     const auto readAvailable = [&] {
         if (!check()) return false;
         const auto available = source.bytesAvailable();
-        if (available < 0) return fail(Outcome::TransportError, QStringLiteral("Invalid available-byte count."));
+        if (available < 0) {
+            result.outcome = Outcome::TransportError;
+            return false;
+        }
         if (!available) return true;
         QByteArray bytes(qMin<qint64>(available, 4096), Qt::Uninitialized);
         const auto count = source.read(bytes.data(), bytes.size());
-        if (count < 0 || count > bytes.size() || source.hasError())
-            return fail(Outcome::TransportError, QStringLiteral("Transport read failed: %1").arg(source.errorString()));
+        if (count < 0 || count > bytes.size() || source.hasError()) {
+            result.outcome = Outcome::TransportError;
+            result.error = source.errorString();
+            return false;
+        }
         bytes.resize(count);
         const auto parsed = protocol.append(bytes);
         for (const auto& received : parsed.responses) {
@@ -200,19 +207,26 @@ CommunicationWorker::Result CommunicationWorker::transact(
     for (;;) {
         if (!readAvailable()) return result;
         auto pending = source.bytesToWrite();
-        if (pending < 0) { fail(Outcome::TransportError, QStringLiteral("Invalid pending-byte count.")); return result; }
+        if (pending < 0) {
+            result.outcome = Outcome::TransportError;
+            return result;
+        }
         qint64 accepted = 0;
         if (!pending && offset < bytes.size()) {
             const auto remaining = bytes.sliced(offset);
             accepted = source.write(remaining);
             if (accepted < 0 || accepted > remaining.size() || source.hasError()) {
-                fail(Outcome::TransportError, QStringLiteral("Transport write failed: %1").arg(source.errorString()));
+                result.outcome = Outcome::TransportError;
+                result.error = source.errorString();
                 return result;
             }
             offset += accepted;
             if (!readAvailable()) return result; // Retain an early response until output drains.
             pending = source.bytesToWrite();
-            if (pending < 0) { fail(Outcome::TransportError, QStringLiteral("Invalid pending-byte count.")); return result; }
+            if (pending < 0) {
+                result.outcome = Outcome::TransportError;
+                return result;
+            }
         }
         if (!check()) return result;
         if (offset == bytes.size() && pending == 0) break;

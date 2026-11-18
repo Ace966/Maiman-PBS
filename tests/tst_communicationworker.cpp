@@ -138,6 +138,13 @@ struct Fixture {
         connection.shutdown();
         QCOMPARE(results.size(), accepted);
         QCOMPARE(connection.outstanding(), 0);
+        for (const auto& row : results) {
+            const auto result = qvariant_cast<Result>(row[0]);
+            if (result.outcome == Outcome::Cancelled) {
+                QVERIFY(result.error.isEmpty());
+                QCOMPARE(result.errorCode, quint16(0));
+            }
+        }
     }
 };
 }
@@ -165,6 +172,8 @@ private slots:
     void lateResponseRequiresReconnect();void staleCallerCallback_data();void staleCallerCallback();
     void serializedLifecycle();void creditsAfterFailure_data();void creditsAfterFailure();
     void shutdownFromFailureNotification();
+    void lifecycleOutcomes_data();void lifecycleOutcomes();
+    void reconnectFromResult_data();void reconnectFromResult();
     void stalledOutput();void progressAfterZeroWrite();void deadlineNotExtended();
     void boundedBurstAndShutdown();void completedResultsRemainBounded();
     void openFailureAndRetry();void nullFactory();void transportFailure_data();void transportFailure();
@@ -770,7 +779,13 @@ void CommunicationWorkerTests::creditsAfterFailure() {
     QCOMPARE(f.connection.outstanding(), 0);
     QVERIFY(!f.connection.isConnected());
     QTRY_COMPARE(f.changes.size(), 2);
-    QVERIFY(!f.changes[1][1].toString().isEmpty());
+    if (timeout) {
+        QVERIFY(f.result(0).error.isEmpty());
+        QVERIFY(f.changes[1][1].toString().isEmpty());
+    } else {
+        QCOMPARE(f.result(0).error, QStringLiteral("injected port error"));
+        QCOMPARE(f.changes[1][1].toString(), f.result(0).error);
+    }
     f.open();
     QTRY_VERIFY(f.connection.isConnected());
     QVERIFY(f.write(3, 123));
@@ -806,6 +821,81 @@ void CommunicationWorkerTests::shutdownFromFailureNotification() {
     QCOMPARE(f.result(0).outcome, Outcome::TransportError);
     QCOMPARE(f.result(1).outcome, Outcome::Cancelled);
     QCOMPARE(f.result(2).outcome, Outcome::Cancelled);
+    f.exactlyOnce();
+}
+
+void CommunicationWorkerTests::lifecycleOutcomes_data() {
+    QTest::addColumn<int>("operation");
+    QTest::newRow("disconnect") << 0;
+    QTest::newRow("shutdown") << 1;
+    QTest::newRow("replacement") << 2;
+}
+
+void CommunicationWorkerTests::lifecycleOutcomes() {
+    QFETCH(int, operation);
+    Fixture f;
+    f.open();
+    QTRY_VERIFY(f.connection.isConnected());
+    QVERIFY(f.read(0x10, 10000));
+    QTRY_COMPARE(f.state->submissions(), 1);
+    QVERIFY(f.write(0x20, 0x1234));
+    QVERIFY(f.read(0x30));
+    if (operation == 1) f.connection.shutdown();
+    else {
+        QVERIFY(operation == 0 ? f.connection.disconnectPort() : f.connection.connectPort({"NEW", 9600}));
+        QTRY_COMPARE(f.changes.size(), 2);
+        QCOMPARE(f.changes[1][0].toBool(), operation == 2);
+        QVERIFY(f.changes[1][1].toString().isEmpty());
+    }
+    QTRY_COMPARE(f.results.size(), 3);
+    const QList<quint16> parameters{0x10, 0x20, 0x30};
+    for (int i = 0; i < 3; ++i) {
+        QCOMPARE(f.result(i).parameter, parameters[i]);
+        QCOMPARE(f.result(i).outcome, Outcome::Cancelled);
+        QVERIFY(f.result(i).error.isEmpty());
+        QCOMPARE(f.result(i).errorCode, quint16(0));
+    }
+    QCOMPARE(f.result(1).value, quint16(0x1234));
+    QCOMPARE(f.connection.outstanding(), 0);
+    f.exactlyOnce();
+    QCOMPARE(f.state->affinityErrors, 0);
+    QCOMPARE(f.state->created, f.state->destroyed);
+}
+
+void CommunicationWorkerTests::reconnectFromResult_data() {
+    QTest::addColumn<bool>("dispatchNested");
+    QTest::newRow("control-pending-after-callback") << false;
+    QTest::newRow("control-acknowledged-in-callback") << true;
+}
+
+void CommunicationWorkerTests::reconnectFromResult() {
+    QFETCH(bool, dispatchNested);
+    Fixture f;
+    f.state->failWrite = true;
+    f.open();
+    QTRY_VERIFY(f.connection.isConnected());
+    bool reconnectAccepted = false;
+    connect(&f.connection, &CommunicationConnection::requestFinished, this,
+        [&](const Result& result) {
+            if (result.outcome != Outcome::TransportError) return;
+            QVERIFY(!result.error.isEmpty());
+            QVERIFY(!f.connection.isConnected());
+            f.post([](State& s) { s.failWrite = false; });
+            reconnectAccepted = f.connection.connectPort({"NEW", 9600});
+            QVERIFY(reconnectAccepted);
+            if (dispatchNested) QTRY_VERIFY(f.connection.isConnected());
+        });
+    QVERIFY(f.read(1));
+    QTRY_VERIFY(reconnectAccepted && f.connection.isConnected());
+    QCOMPARE(f.results.size(), 1);
+    QCOMPARE(f.changes.size(), 2); // Open then replacement: no old failure after the callback.
+    QVERIFY(f.changes[0][0].toBool());
+    QVERIFY(f.changes[1][0].toBool());
+    QVERIFY(f.write(2, 123));
+    QTRY_COMPARE(f.results.size(), 2);
+    QCOMPARE(f.result(1).outcome, Outcome::BytesSent);
+    QCOMPARE(f.result(1).parameter, quint16(2));
+    QCOMPARE(f.result(1).value, quint16(123));
     f.exactlyOnce();
 }
 

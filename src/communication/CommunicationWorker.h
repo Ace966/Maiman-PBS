@@ -15,7 +15,7 @@ class CommunicationWorker : public QThread {
     Q_OBJECT
 public:
     static constexpr int QueueCapacity = 32;
-    using SourceFactory = std::function<IDataSource*()>; // Called in the worker thread.
+    using SourceFactory = std::function<IDataSource*()>; // Creates a new parentless source in the worker thread.
     enum class Kind { Read, Write };
     enum class Outcome { ReadResponse, BytesSent, DeviceError, NonexistentParameter,
                          Timeout, TransportError, Cancelled, NotConnected };
@@ -49,10 +49,9 @@ private:
     void shutdown();
     void run() override;
     Result transact(IDataSource& source, PICTextProtocol& protocol, const Request& request);
-    bool interrupted();
     void wakeLocked();
     QList<Request> takeQueuedLocked();
-    void complete(const Request& request, Outcome outcome, const QString& error);
+    void complete(const Request& request, Outcome outcome);
     struct Control {
         SerialSettings settings;
         bool opening;

@@ -40,13 +40,19 @@ target_link_libraries(XmlConfigLoaderTests PRIVATE MaimanPBS::Config Qt6::Test)
 add_test(NAME xml_config_loader COMMAND XmlConfigLoaderTests -o -,txt
     -o "${CMAKE_CURRENT_BINARY_DIR}/xml-config-loader.txt,txt")
 
+add_executable(DeviceFactoryTests tst_devicefactory.cpp)
+set_target_properties(DeviceFactoryTests PROPERTIES AUTOMOC ON)
+target_link_libraries(DeviceFactoryTests PRIVATE MaimanPBS::Config Qt6::Test)
+add_test(NAME device_factory COMMAND DeviceFactoryTests -o -,txt
+    -o "${CMAKE_CURRENT_BINARY_DIR}/device-factory.txt,txt")
+
 add_executable(XmlParserTests tst_xmlparser.cpp)
 set_target_properties(XmlParserTests PROPERTIES AUTOMOC ON)
 target_link_libraries(XmlParserTests PRIVATE MaimanPBS::Xml Qt6::Test)
 add_test(NAME xml_parser COMMAND XmlParserTests -o -,txt
     -o "${CMAKE_CURRENT_BINARY_DIR}/xml-parser.txt,txt")
 
-set_tests_properties(communication_foundation serial_data_source communication_worker pic_text_protocol device_repository xml_config_loader xml_parser PROPERTIES TIMEOUT 15)
+set_tests_properties(communication_foundation serial_data_source communication_worker pic_text_protocol device_repository xml_config_loader xml_parser device_factory PROPERTIES TIMEOUT 15)
 
 # Make CTest find Qt and compiler runtime DLLs without a deployment step.
 if(WIN32)
@@ -57,7 +63,7 @@ if(WIN32)
         get_filename_component(compiler_bin "${CMAKE_CXX_COMPILER}" DIRECTORY)
         list(APPEND runtime_environment "PATH=path_list_prepend:${compiler_bin}")
     endif()
-    set_tests_properties(communication_foundation serial_data_source communication_worker pic_text_protocol device_repository xml_config_loader xml_parser PROPERTIES
+    set_tests_properties(communication_foundation serial_data_source communication_worker pic_text_protocol device_repository xml_config_loader xml_parser device_factory PROPERTIES
         ENVIRONMENT_MODIFICATION "${runtime_environment}"
     )
 endif()

@@ -3,10 +3,11 @@
 #include "DeviceRepository.h"
 
 #include <QString>
-#include <memory>
+#include <QSharedPointer>
 
-namespace DeviceFactory {
-// Sole ownership, no QObject parent; runtime values remain unreceived.
-std::unique_ptr<DeviceRepository> create(
-    const QString& filename, quint16 modelId, QString* error = nullptr);
-}
+class DeviceFactory {
+public:
+    // Shared ownership without a QObject parent; access and release in the owning thread.
+    static QSharedPointer<DeviceRepository> create(
+        const QString& filename, quint16 modelId, QString* error = nullptr);
+};

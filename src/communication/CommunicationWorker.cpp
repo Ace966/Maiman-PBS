@@ -1,15 +1,21 @@
 #include "CommunicationWorker.h"
 #include <QDeadlineTimer>
-#include <memory>
+#include <QScopedPointer>
 #include <utility>
 
 CommunicationWorker::CommunicationWorker(SourceFactory factory, QObject* parent)
     : QThread(parent), m_factory(std::move(factory)) {}
 
-CommunicationWorker::~CommunicationWorker() { shutdown(); wait(); }
+CommunicationWorker::~CommunicationWorker() {
+    shutdown();
+    wait();
+}
 
 void CommunicationWorker::wakeLocked() {
-    if (!m_wakePending) { m_wakePending = true; m_wake.release(); }
+    if (!m_wakePending) {
+        m_wakePending = true;
+        m_wake.release();
+    }
 }
 
 void CommunicationWorker::open(const SerialSettings& settings) {
@@ -66,12 +72,15 @@ void CommunicationWorker::complete(const Request& request, Outcome outcome) {
 }
 
 void CommunicationWorker::run() {
-    std::unique_ptr<IDataSource> source;
+    QScopedPointer<IDataSource> source;
     PICTextProtocol protocol;
     QDeadlineTimer nextCommand(0, Qt::PreciseTimer);
     bool delayPending = false;
     const auto close = [&] {
-        if (source) { source->close(); source.reset(); }
+        if (source) {
+            source->close();
+            source.reset();
+        }
         protocol.reset();
         nextCommand = QDeadlineTimer(0, Qt::PreciseTimer);
     };
@@ -135,7 +144,10 @@ void CommunicationWorker::run() {
             }
             closing = result.outcome == Outcome::Timeout || result.outcome == Outcome::TransportError
                 || result.outcome == Outcome::Cancelled;
-            if (closing) { m_connected = false; cancelled = takeQueuedLocked(); }
+            if (closing) {
+                m_connected = false;
+                cancelled = takeQueuedLocked();
+            }
             else nextCommand = QDeadlineTimer(m_interCommandDelayMs, Qt::PreciseTimer);
         }
         if (closing) close();
@@ -240,9 +252,13 @@ CommunicationWorker::Result CommunicationWorker::transact(
     if (!check()) return result;
     if (response) {
         if (response->kind == PICTextProtocol::Kind::DeviceError) {
-            result.outcome = Outcome::DeviceError; result.errorCode = response->errorCode;
+            result.outcome = Outcome::DeviceError;
+            result.errorCode = response->errorCode;
         } else if (response->kind == PICTextProtocol::Kind::NonexistentParameter) result.outcome = Outcome::NonexistentParameter;
-        else { result.outcome = Outcome::ReadResponse; result.value = response->value; }
+        else {
+            result.outcome = Outcome::ReadResponse;
+            result.value = response->value;
+        }
     }
     return result; // Standard Write success is local BytesSent, never device-state confirmation.
 }

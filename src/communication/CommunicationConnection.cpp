@@ -37,13 +37,10 @@ void CommunicationConnection::onRequestFinished(const CommunicationWorker::Resul
 }
 
 bool CommunicationConnection::connectPort(const SerialSettings& settings) {
-    m_error.clear();
     if (m_shutdown || m_controlPending) {
-        m_error = QStringLiteral("Connection change unavailable or pending.");
         return false;
     }
     if (settings.comport.trimmed().isEmpty() || settings.comport.contains(QChar(0)) || settings.baudrate <= 0) {
-        m_error = QStringLiteral("Expected explicit nonblank comport without NUL and positive baudrate.");
         return false;
     }
     m_connected = false;
@@ -53,9 +50,7 @@ bool CommunicationConnection::connectPort(const SerialSettings& settings) {
 }
 
 bool CommunicationConnection::disconnectPort() {
-    m_error.clear();
     if (m_shutdown || m_controlPending) {
-        m_error = QStringLiteral("Connection change unavailable or pending.");
         return false;
     }
     m_connected = false;
@@ -65,9 +60,7 @@ bool CommunicationConnection::disconnectPort() {
 }
 
 bool CommunicationConnection::setInterCommandDelayMs(int delayMs) {
-    m_error.clear();
     if (delayMs < 0 || m_shutdown || m_connected || m_controlPending) {
-        m_error = QStringLiteral("Delay must be nonnegative and configured while disconnected with no pending connection change.");
         return false;
     }
     m_worker->setInterCommandDelayMs(delayMs);
@@ -81,10 +74,8 @@ bool CommunicationConnection::write(quint16 parameter, quint16 value, int timeou
     return submit(CommunicationWorker::Kind::Write, parameter, value, timeoutMs);
 }
 bool CommunicationConnection::submit(CommunicationWorker::Kind kind, quint16 parameter, quint16 value, int timeoutMs) {
-    m_error.clear();
     auto& count = kind == CommunicationWorker::Kind::Read ? m_reads : m_writes;
     if (m_shutdown || !m_connected || timeoutMs <= 0 || count == CommunicationWorker::QueueCapacity) {
-        m_error = QStringLiteral("Not connected, nonpositive timeout or capacity reached.");
         return false;
     }
     ++count;

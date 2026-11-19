@@ -104,14 +104,14 @@ void DeviceFactoryTests::independentRepositories() {
     const auto second = DeviceFactory::create(catalog(), secondId);
     QVERIFY(first);
     QVERIFY(second);
-    QVERIFY(first.get() != second.get());
+    QVERIFY(first.data() != second.data());
     QCOMPARE(first->configuration().modelId(), quint16(0x1700));
     QCOMPARE(first->configuration().parameters().size(), 97);
     QCOMPARE(second->configuration().modelId(), secondId);
     QCOMPARE(second->configuration().parameters().size(), secondId == 0x1700 ? 97 : 185);
-    QSignalSpy firstChanged(first.get(), &DeviceRepository::propertyChanged);
-    QSignalSpy secondChanged(second.get(), &DeviceRepository::propertyChanged);
-    QSignalSpy secondCleared(second.get(), &DeviceRepository::cleared);
+    QSignalSpy firstChanged(first.data(), &DeviceRepository::propertyChanged);
+    QSignalSpy secondChanged(second.data(), &DeviceRepository::propertyChanged);
+    QSignalSpy secondCleared(second.data(), &DeviceRepository::cleared);
     QVERIFY(firstChanged.isValid());
     QVERIFY(secondChanged.isValid());
     QVERIFY(secondCleared.isValid());
@@ -131,7 +131,9 @@ void DeviceFactoryTests::independentRepositories() {
 }
 
 void DeviceFactoryTests::ownershipAndAffinity() {
-    QPointer<DeviceRepository> destroyedWithOwner;
+    QPointer<DeviceRepository> destroyedWithLastOwner;
+    QThread* destructionThread = nullptr;
+    QSharedPointer<DeviceRepository> retained;
     const auto survivor = DeviceFactory::create(catalog(), 0x1701);
     QVERIFY(survivor);
     {
@@ -139,10 +141,17 @@ void DeviceFactoryTests::ownershipAndAffinity() {
         QVERIFY(owner);
         QVERIFY(!owner->parent());
         QCOMPARE(owner->thread(), QThread::currentThread());
-        destroyedWithOwner = owner.get();
-        QVERIFY(!destroyedWithOwner.isNull());
+        destroyedWithLastOwner = owner.data();
+        retained = owner;
+        connect(owner.data(), &QObject::destroyed, this, [&] {
+            destructionThread = QThread::currentThread();
+        }, Qt::DirectConnection);
     }
-    QVERIFY(destroyedWithOwner.isNull());
+    QVERIFY(!destroyedWithLastOwner.isNull());
+    QVERIFY(retained->update(0x0017, 356));
+    retained.clear();
+    QVERIFY(destroyedWithLastOwner.isNull());
+    QCOMPARE(destructionThread, QThread::currentThread());
     QVERIFY(!survivor->parent());
     QCOMPARE(survivor->thread(), QThread::currentThread());
     QVERIFY(survivor->update(0x0017, 356));
@@ -169,8 +178,8 @@ void DeviceFactoryTests::failures() {
     QVERIFY(survivor);
     QVERIFY(survivor->update(0x0017, 356));
     const auto saved = survivor->value(0x0017);
-    QSignalSpy changed(survivor.get(), &DeviceRepository::propertyChanged);
-    QSignalSpy cleared(survivor.get(), &DeviceRepository::cleared);
+    QSignalSpy changed(survivor.data(), &DeviceRepository::propertyChanged);
+    QSignalSpy cleared(survivor.data(), &DeviceRepository::cleared);
     QVERIFY(changed.isValid());
     QVERIFY(cleared.isValid());
     QTemporaryDir directory(QDir::current().filePath(QStringLiteral("factory-failure-XXXXXX")));
@@ -220,7 +229,7 @@ void DeviceFactoryTests::retryAndOptionalDiagnostic() {
     QVERIFY(!repository->value(0x0017).isValid());
     const auto second = DeviceFactory::create(catalog(), 0x1700);
     QVERIFY(second);
-    QVERIFY(second.get() != repository.get());
+    QVERIFY(second.data() != repository.data());
 }
 
 void DeviceFactoryTests::receivedValueFlow() {
@@ -228,8 +237,8 @@ void DeviceFactoryTests::receivedValueFlow() {
     QVERIFY(repository);
     QVERIFY(!repository->value(0x0017).isValid());
     QCOMPARE(repository->configuration().parameters().value(0x0017).unit, QStringLiteral("V"));
-    QSignalSpy changed(repository.get(), &DeviceRepository::propertyChanged);
-    QSignalSpy cleared(repository.get(), &DeviceRepository::cleared);
+    QSignalSpy changed(repository.data(), &DeviceRepository::propertyChanged);
+    QSignalSpy cleared(repository.data(), &DeviceRepository::cleared);
     QVERIFY(changed.isValid());
     QVERIFY(cleared.isValid());
     repository->clear();
@@ -290,7 +299,7 @@ void DeviceFactoryTests::signedParameter() {
     QCOMPARE(definition.scale, divider == "1" ? 1.0 : 0.1);
     QCOMPARE(definition.tolerance, quint8(2));
     QVERIFY(!repository->value(0x0042).isValid());
-    QSignalSpy changed(repository.get(), &DeviceRepository::propertyChanged);
+    QSignalSpy changed(repository.data(), &DeviceRepository::propertyChanged);
     QVERIFY(changed.isValid());
     QVERIFY(repository->update(0x0042, 0xff9c));
     QCOMPARE(repository->value(0x0042).toDouble(), expected);

@@ -9,7 +9,9 @@
 #include <QWaitCondition>
 #include <QtTest>
 #include <cstring>
-#include <memory>
+#include <QScopedPointer>
+#include <QSharedPointer>
+#include <utility>
 #include <limits>
 
 using Outcome=CommunicationWorker::Outcome;
@@ -52,9 +54,14 @@ struct State {
 };
 class FakeSource:public IDataSource {
 public:
-    explicit FakeSource(std::shared_ptr<State> state):s(std::move(state)) {
-        QMutexLocker lock(&s->mutex);++s->created;s->owner=QThread::currentThread();
-        s->incoming.clear();s->error.clear();s->pending=0;s->opened=false;
+    explicit FakeSource(QSharedPointer<State> state) : s(std::move(state)) {
+        QMutexLocker lock(&s->mutex);
+        ++s->created;
+        s->owner = QThread::currentThread();
+        s->incoming.clear();
+        s->error.clear();
+        s->pending = 0;
+        s->opened = false;
     }
     ~FakeSource() override {check();QMutexLocker lock(&s->mutex);++s->destroyed;}
     bool open(const SerialSettings&) override {
@@ -101,11 +108,11 @@ public:
         return s->pending==0;
     }
 private:
-    std::shared_ptr<State> s;
+    QSharedPointer<State> s;
     void check()const{if(thread()!=QThread::currentThread()){QMutexLocker lock(&s->mutex);++s->affinityErrors;}}
 };
 struct Fixture {
-    std::shared_ptr<State> state=std::make_shared<State>();
+    QSharedPointer<State> state=QSharedPointer<State>::create();
     CommunicationConnection connection{[s=state]{return new FakeSource(s);}};
     QSignalSpy results{&connection,&CommunicationConnection::requestFinished};
     QSignalSpy changes{&connection,&CommunicationConnection::connectionChanged};
@@ -151,6 +158,8 @@ struct Fixture {
 class CommunicationWorkerTests:public QObject {
     Q_OBJECT
 private slots:
+    void submissionRejections_data();
+    void submissionRejections();
     void typedSettings_data();void typedSettings();
     void idleUsesSemaphore();void shutdownInterruptsLongWait();
     void timingConfiguration();
@@ -186,9 +195,18 @@ void CommunicationWorkerTests::typedSettings_data(){
     QTest::newRow("NUL")<<SerialSettings{QString("FAKE")+QChar(0)+"suffix",115200};
     QTest::newRow("zero-baud")<<SerialSettings{"FAKE",0};QTest::newRow("negative-baud")<<SerialSettings{"FAKE",-1};
 }
-void CommunicationWorkerTests::typedSettings(){QFETCH(SerialSettings,settings);Fixture f;
-    QVERIFY(!f.connection.connectPort(settings));QVERIFY(!f.connection.lastSubmissionError().isEmpty());
-    QCOMPARE(f.read(1),false);f.connection.shutdown();QCOMPARE(f.state->created,0);}
+void CommunicationWorkerTests::typedSettings() {
+    QFETCH(SerialSettings, settings);
+    Fixture f;
+    QVERIFY(!f.connection.connectPort(settings));
+    QVERIFY(!f.read(1));
+    QVERIFY(!f.write(2, 3));
+    QCOMPARE(f.connection.outstanding(), 0);
+    f.exactlyOnce();
+    QCOMPARE(f.state->created, 0);
+    QCOMPARE(f.state->attemptCount(), 0);
+}
+
 void CommunicationWorkerTests::readFragmented(){Fixture f;f.open();QTRY_VERIFY(f.connection.isConnected());
     QVERIFY(f.read(0x0017));QTRY_COMPARE(f.state->bytes(),QByteArray("J0017\r"));
     f.input("K0017");f.input(" 01");f.input("64\r");QTRY_COMPARE(f.results.size(),1);
@@ -259,12 +277,20 @@ void CommunicationWorkerTests::boundedBurstAndShutdown() {
     Fixture f;
     f.open();
     QTRY_VERIFY(f.connection.isConnected());
+    for (int i = 0; i < 8; ++i) {
+        QVERIFY(!f.read(0xEEEE, 0));
+        QVERIFY(!f.write(0xEEEE, 0xFFFF, -1));
+    }
+    QCOMPARE(f.connection.outstanding(), 0);
+    QVERIFY(f.results.isEmpty());
     QVERIFY(f.read(1, 10000));
     QTRY_COMPARE(f.state->submissions(), 1);
     for (int i = 0; i < 5000; ++i) f.read(1, 10000);
     for (int i = 0; i < 5000; ++i) f.write(2, 3, 10000);
     QCOMPARE(f.accepted, 64);
     QCOMPARE(f.connection.outstanding(), 64);
+    QCOMPARE(f.state->bytes(), QByteArray("J0001\r"));
+    QCOMPARE(f.state->submissions(), 1);
     f.connection.shutdown();
     QCOMPARE(f.results.size(), 64);
     QCOMPARE(f.connection.outstanding(), 0);
@@ -289,15 +315,60 @@ void CommunicationWorkerTests::boundedBurstAndShutdown() {
     QVERIFY(!thread->isRunning());
 }
 
-void CommunicationWorkerTests::openFailureAndRetry(){Fixture f;f.state->failOpen=true;f.open();QTRY_COMPARE(f.changes.size(),1);QVERIFY(!f.connection.isConnected());
-    QCOMPARE(f.read(1),false);{QMutexLocker lock(&f.state->mutex);f.state->failOpen=false;}
-    f.open();QTRY_VERIFY(f.connection.isConnected());f.write(1,2);QTRY_COMPARE(f.results.size(),1);f.connection.shutdown();QCOMPARE(f.state->created,2);QCOMPARE(f.state->destroyed,2);}
+void CommunicationWorkerTests::openFailureAndRetry() {
+    Fixture f;
+    f.state->failOpen = true;
+    f.open();
+    QTRY_COMPARE(f.changes.size(), 1);
+    QVERIFY(!f.connection.isConnected());
+    QCOMPARE(f.changes[0][1].toString(), QStringLiteral("open failed"));
+    QVERIFY(!f.read(1));
+    {
+        QMutexLocker lock(&f.state->mutex);
+        f.state->failOpen = false;
+    }
+    f.open();
+    QTRY_VERIFY(f.connection.isConnected());
+    QVERIFY(f.write(1, 2));
+    QTRY_COMPARE(f.results.size(), 1);
+    f.connection.shutdown();
+    QCOMPARE(f.state->created, 2);
+    QCOMPARE(f.state->destroyed, 2);
+    QCOMPARE(f.state->affinityErrors, 0);
+    f.exactlyOnce();
+}
+
 void CommunicationWorkerTests::nullFactory(){CommunicationConnection c([]()->IDataSource*{return nullptr;});QSignalSpy changes(&c,&CommunicationConnection::connectionChanged);
     QVERIFY(c.connectPort({"FAKE",115200}));QTRY_COMPARE(changes.size(),1);QVERIFY(!c.isConnected());QVERIFY(!changes[0][1].toString().isEmpty());}
-void CommunicationWorkerTests::transportFailure_data(){QTest::addColumn<int>("which");QTest::newRow("write")<<0;QTest::newRow("read")<<1;QTest::newRow("blocking-wait-error")<<2;}
-void CommunicationWorkerTests::transportFailure(){QFETCH(int,which);Fixture f;f.state->failWrite=which==0;f.state->failRead=which==1;f.open();QTRY_VERIFY(f.connection.isConnected());
-    f.read(1);if(which){QTRY_COMPARE(f.state->submissions(),1);if(which==1)f.input("K0001 0002\r");else f.post([](State& s){s.fault();});}
-    QTRY_COMPARE(f.results.size(),1);QCOMPARE(f.result(0).outcome,Outcome::TransportError);QVERIFY(!f.connection.isConnected());f.exactlyOnce();}
+void CommunicationWorkerTests::transportFailure_data() {
+    QTest::addColumn<int>("which");
+    QTest::addColumn<QString>("diagnostic");
+    QTest::newRow("write") << 0 << QStringLiteral("write failed");
+    QTest::newRow("read") << 1 << QStringLiteral("read failed");
+    QTest::newRow("blocking-wait-error") << 2 << QStringLiteral("injected port error");
+}
+
+void CommunicationWorkerTests::transportFailure() {
+    QFETCH(int, which);
+    QFETCH(QString, diagnostic);
+    Fixture f;
+    f.state->failWrite = which == 0;
+    f.state->failRead = which == 1;
+    f.open();
+    QTRY_VERIFY(f.connection.isConnected());
+    QVERIFY(f.read(1));
+    if (which) {
+        QTRY_COMPARE(f.state->submissions(), 1);
+        if (which == 1) f.input("K0001 0002\r");
+        else f.post([](State& state) { state.fault(); });
+    }
+    QTRY_COMPARE(f.results.size(), 1);
+    QCOMPARE(f.result(0).outcome, Outcome::TransportError);
+    QCOMPARE(f.result(0).error, diagnostic);
+    QVERIFY(!f.connection.isConnected());
+    f.exactlyOnce();
+}
+
 void CommunicationWorkerTests::disconnectActive(){Fixture f;f.open();QTRY_VERIFY(f.connection.isConnected());f.read(1);QTRY_COMPARE(f.state->submissions(),1);f.write(2,3);
     QVERIFY(f.connection.disconnectPort());QTRY_COMPARE(f.results.size(),2);QVERIFY(!f.connection.isConnected());f.exactlyOnce();}
 void CommunicationWorkerTests::reconnectDropsStaleCallbacks(){Fixture f;f.open();QTRY_VERIFY(f.connection.isConnected());f.read(1);QTRY_COMPARE(f.state->submissions(),1);
@@ -317,11 +388,27 @@ void CommunicationWorkerTests::independentConnections(){Fixture a,b;a.open();b.o
     a.input("K0001 0003\r");b.input("K0002 0004\r");QTRY_COMPARE(a.results.size(),1);QTRY_COMPARE(b.results.size(),1);
     QCOMPARE(a.result(0).value,quint16(3));QCOMPARE(b.result(0).value,quint16(4));a.connection.shutdown();b.connection.shutdown();
     QVERIFY(a.state->owner!=b.state->owner);QCOMPARE(a.state->affinityErrors+b.state->affinityErrors,0);}
-void CommunicationWorkerTests::destructionCompletesPending(){auto state=std::make_shared<State>();QList<Result> results;QObject consumer;
-    auto connection=std::make_unique<CommunicationConnection>([state]{return new FakeSource(state);});
-    connect(connection.get(),&CommunicationConnection::requestFinished,&consumer,[&results](const Result& r){results.append(r);});
-    QPointer<QThread> thread=connection->findChild<QThread*>();QVERIFY(connection->connectPort({"FAKE",115200}));QTRY_VERIFY(connection->isConnected());
-    QVERIFY(connection->read(1));QVERIFY(connection->write(2,3));connection.reset();QCOMPARE(results.size(),2);QVERIFY(thread.isNull());QCOMPARE(state->created,state->destroyed);}
+void CommunicationWorkerTests::destructionCompletesPending() {
+    auto state = QSharedPointer<State>::create();
+    QList<Result> results;
+    QObject consumer;
+    QScopedPointer<CommunicationConnection> connection(new CommunicationConnection([state] {
+        return new FakeSource(state);
+    }));
+    connect(connection.data(), &CommunicationConnection::requestFinished, &consumer,
+        [&results](const Result& result) { results.append(result); });
+    QPointer<QThread> thread = connection->findChild<QThread*>();
+    QVERIFY(connection->connectPort({"FAKE", 115200}));
+    QTRY_VERIFY(connection->isConnected());
+    QVERIFY(connection->read(1));
+    QVERIFY(connection->write(2, 3));
+    connection.reset();
+    QCOMPARE(results.size(), 2);
+    QVERIFY(thread.isNull());
+    QCOMPARE(state->created, state->destroyed);
+    QCOMPARE(state->affinityErrors, 0);
+}
+
 void CommunicationWorkerTests::shutdownWhileOpening() {
     Fixture f;
     QSemaphore opened;
@@ -470,10 +557,11 @@ void CommunicationWorkerTests::shutdownInterruptsLongWait(){Fixture f;f.open();Q
 void CommunicationWorkerTests::timingConfiguration() {
     Fixture f;
     QVERIFY(!f.connection.setInterCommandDelayMs(-1));
-    QVERIFY(!f.connection.lastSubmissionError().isEmpty());
+    QCOMPARE(f.connection.outstanding(), 0);
+    QVERIFY(f.results.isEmpty());
     QVERIFY(f.connection.setInterCommandDelayMs(std::numeric_limits<int>::max()));
     QVERIFY(f.connection.setInterCommandDelayMs(0));
-    QVERIFY(f.connection.lastSubmissionError().isEmpty());
+    QCOMPARE(f.state->attemptCount(), 0);
     f.open();
     QVERIFY(!f.connection.setInterCommandDelayMs(1)); // Opening is still pending in the caller.
     QTRY_VERIFY(f.connection.isConnected());
@@ -705,23 +793,35 @@ void CommunicationWorkerTests::timingWakeupsNearExpiry() {
 
 void CommunicationWorkerTests::serializedLifecycle() {
     Fixture f;
+    QVERIFY(!f.read(0xEEEE));
+    QVERIFY(!f.write(0xEEEE, 0xFFFF));
+    QCOMPARE(f.connection.outstanding(), 0);
     f.open();
     QVERIFY(!f.connection.disconnectPort());
     QVERIFY(!f.connection.connectPort({"OVERLAP", 9600}));
-    QVERIFY(!f.read(1));
+    QVERIFY(!f.read(0xEEEE));
+    QVERIFY(!f.write(0xEEEE, 0xFFFF));
     QTRY_COMPARE(f.changes.size(), 1);
     QVERIFY(f.connection.isConnected());
+    QVERIFY(f.results.isEmpty());
+    QCOMPARE(f.state->attemptCount(), 0);
+    QByteArray expected;
     for (int i = 0; i < 12; ++i) {
         const auto before = f.changes.size();
         QVERIFY(f.connection.disconnectPort());
         QVERIFY(!f.connection.connectPort({"OVERLAP", 9600}));
         QVERIFY(!f.connection.disconnectPort());
+        QVERIFY(!f.connection.setInterCommandDelayMs(1));
+        QVERIFY(!f.read(0xEEEE));
+        QVERIFY(!f.write(0xEEEE, 0xFFFF));
         QTRY_COMPARE(f.changes.size(), before + 1);
         QVERIFY(!f.connection.isConnected());
+        QVERIFY(f.changes.last()[1].toString().isEmpty());
         f.open();
         QVERIFY(!f.connection.disconnectPort());
         QVERIFY(!f.connection.connectPort({"OVERLAP", 9600}));
-        QVERIFY(!f.read(1));
+        QVERIFY(!f.read(0xEEEE));
+        QVERIFY(!f.write(0xEEEE, 0xFFFF));
         QTRY_COMPARE(f.changes.size(), before + 2);
         QVERIFY(f.connection.isConnected());
         QVERIFY(f.write(quint16(i + 1), quint16(i + 10)));
@@ -729,8 +829,18 @@ void CommunicationWorkerTests::serializedLifecycle() {
         QCOMPARE(f.result(i).parameter, quint16(i + 1));
         QCOMPARE(f.result(i).value, quint16(i + 10));
         QCOMPARE(f.result(i).outcome, Outcome::BytesSent);
+        expected += PICTextProtocol::encodeWrite(quint16(i + 1), quint16(i + 10));
+        QCOMPARE(f.state->bytes(), expected);
     }
     f.exactlyOnce();
+    QVERIFY(!f.connection.connectPort({"AFTER_SHUTDOWN", 9600}));
+    QVERIFY(!f.connection.disconnectPort());
+    QVERIFY(!f.connection.setInterCommandDelayMs(0));
+    QVERIFY(!f.read(0xEEEE));
+    QVERIFY(!f.write(0xEEEE, 0xFFFF));
+    QCOMPARE(f.results.size(), 12);
+    QCOMPARE(f.connection.outstanding(), 0);
+    QCOMPARE(f.state->bytes(), expected);
     QCOMPARE(f.state->created, f.state->destroyed);
     QCOMPARE(f.state->affinityErrors, 0);
 }
@@ -897,6 +1007,38 @@ void CommunicationWorkerTests::reconnectFromResult() {
     QCOMPARE(f.result(1).parameter, quint16(2));
     QCOMPARE(f.result(1).value, quint16(123));
     f.exactlyOnce();
+}
+
+void CommunicationWorkerTests::submissionRejections_data() {
+    QTest::addColumn<bool>("writing");
+    QTest::addColumn<int>("timeout");
+    QTest::newRow("read-zero-timeout") << false << 0;
+    QTest::newRow("read-negative-timeout") << false << -1;
+    QTest::newRow("write-zero-timeout") << true << 0;
+    QTest::newRow("write-negative-timeout") << true << -1;
+}
+
+void CommunicationWorkerTests::submissionRejections() {
+    QFETCH(bool, writing);
+    QFETCH(int, timeout);
+    Fixture f;
+    f.open();
+    QTRY_VERIFY(f.connection.isConnected());
+    const bool admitted = writing ? f.write(0xEEEE, 0xFFFF, timeout) : f.read(0xEEEE, timeout);
+    QVERIFY(!admitted);
+    QCOMPARE(f.connection.outstanding(), 0);
+    QVERIFY(f.results.isEmpty());
+    // A successful marker completion observes Worker processing without relying on a sleep.
+    QVERIFY(f.write(0x4444, 0x1234));
+    QTRY_COMPARE(f.results.size(), 1);
+    QCOMPARE(f.result(0).kind, CommunicationWorker::Kind::Write);
+    QCOMPARE(f.result(0).parameter, quint16(0x4444));
+    QCOMPARE(f.result(0).value, quint16(0x1234));
+    QCOMPARE(f.result(0).outcome, Outcome::BytesSent);
+    QCOMPARE(f.state->bytes(), QByteArray("P4444 1234\r"));
+    QCOMPARE(f.state->submissions(), 1);
+    f.exactlyOnce();
+    QCOMPARE(f.state->affinityErrors, 0);
 }
 
 QTEST_GUILESS_MAIN(CommunicationWorkerTests)

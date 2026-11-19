@@ -3,9 +3,9 @@
 
 #include <utility>
 
-std::unique_ptr<DeviceRepository> DeviceFactory::create(
+QSharedPointer<DeviceRepository> DeviceFactory::create(
     const QString& filename, quint16 modelId, QString* error) {
     auto configuration = XmlConfigLoader::loadModel(filename, modelId, error);
-    if (!configuration) return nullptr;
-    return std::make_unique<DeviceRepository>(std::move(*configuration));
+    if (!configuration) return {};
+    return QSharedPointer<DeviceRepository>::create(std::move(*configuration));
 }

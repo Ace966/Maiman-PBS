@@ -16,7 +16,6 @@ public:
     void shutdown(); // Final, joins outside Worker; create another facade to restart.
     bool isConnected() const { return m_connected; }
     int outstanding() const { return m_reads + m_writes; }
-    QString lastSubmissionError() const { return m_error; }
 signals:
     void connectionChanged(bool connected, const QString& error);
     void requestFinished(const CommunicationWorker::Result& result);
@@ -28,5 +27,4 @@ private:
     CommunicationWorker* m_worker; // QThread object owned here in the creator thread.
     int m_reads{0}, m_writes{0}; // Outstanding credits, including active and undelivered results.
     bool m_connected{false}, m_controlPending{false}, m_shutdown{false};
-    QString m_error;
 };

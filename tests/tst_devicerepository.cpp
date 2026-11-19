@@ -1,9 +1,17 @@
 #include "DeviceRepository.h"
 #include "PICTextProtocol.h"
 
+#include <QPointer>
+#include <QSignalSpy>
 #include <QtTest>
+#include <type_traits>
 #include <cmath>
 #include <limits>
+
+static_assert(!std::is_copy_constructible_v<DeviceRepository>);
+static_assert(!std::is_copy_assignable_v<DeviceRepository>);
+static_assert(!std::is_move_constructible_v<DeviceRepository>);
+static_assert(!std::is_move_assignable_v<DeviceRepository>);
 
 namespace {
 // Representative USB register IDs/units from v1.1.0; not a complete table.
@@ -25,6 +33,15 @@ DeviceConfiguration configuration(quint16 modelId, const QString& name, bool ext
 class DeviceRepositoryTests : public QObject {
     Q_OBJECT
 private slots:
+    void propertyNotifications_data();
+    void propertyNotifications();
+    void smallChanges_data();
+    void smallChanges();
+    void rejectedUpdatesAreSilent();
+    void inverseIsSilent();
+    void clearingNotifications();
+    void independentNotifications();
+    void parentOwnership();
     void models_data();
     void models();
     void representativeDefinitions();
@@ -140,14 +157,11 @@ void DeviceRepositoryTests::independentRepositories() {
 }
 
 void DeviceRepositoryTests::configurationSnapshotLifetime() {
-    const auto makeRepository = [] {
-        auto original = configuration(0x1700, QStringLiteral("PIC-8"));
-        DeviceRepository repository(original);
-        const ParameterDefinition extra{QStringLiteral("V"), 0.01};
-        if (!original.addParameter(0x002A, extra)) qFatal("Invalid snapshot fixture");
-        return repository;
-    };
-    auto repository = makeRepository(); // Source was modified, then destroyed.
+    std::optional<DeviceConfiguration> original = configuration(0x1700, QStringLiteral("PIC-8"));
+    DeviceRepository repository(*original);
+    const ParameterDefinition extra{QStringLiteral("V"), 0.01};
+    QVERIFY(original->addParameter(0x002A, extra));
+    original.reset(); // Source was modified, then destroyed.
     QCOMPARE(repository.configuration().parameters().size(), 5);
     QVERIFY(!repository.configuration().parameters().contains(0x002A));
     QVERIFY(!repository.update(0x002A, 123));
@@ -197,11 +211,11 @@ void DeviceRepositoryTests::emptyConfiguration() {
 namespace {
 constexpr quint16 convertedCode = 0xA100;
 constexpr quint16 unchangedCode = 0xA101;
-DeviceRepository numericRepository(double scale, bool isSigned, quint8 tolerance = 0) {
+DeviceConfiguration numericConfiguration(double scale, bool isSigned, quint8 tolerance = 0) {
     DeviceConfiguration model(0x2222, QStringLiteral("Synthetic numeric model"));
     if (!model.addParameter(convertedCode, {QStringLiteral("u"), scale, tolerance, isSigned})
         || !model.addParameter(unchangedCode, {})) qFatal("Invalid numeric fixture");
-    return DeviceRepository(model);
+    return model;
 }
 }
 
@@ -231,7 +245,7 @@ void DeviceRepositoryTests::processedValues_data() {
 void DeviceRepositoryTests::processedValues() {
     QFETCH(quint16, raw); QFETCH(bool, isSigned); QFETCH(double, scale);
     QFETCH(double, physical); QFETCH(int, type);
-    auto repository = numericRepository(scale, isSigned);
+    DeviceRepository repository(numericConfiguration(scale, isSigned));
     QVERIFY(!repository.value(convertedCode).isValid());
     QVERIFY(repository.update(convertedCode, raw));
     const auto stored = repository.value(convertedCode);
@@ -283,7 +297,7 @@ void DeviceRepositoryTests::inverseValues_data() {
 void DeviceRepositoryTests::inverseValues() {
     QFETCH(bool, isSigned); QFETCH(double, scale); QFETCH(double, physical);
     QFETCH(bool, accepted); QFETCH(quint16, payload);
-    const auto repository = numericRepository(scale, isSigned);
+    const DeviceRepository repository(numericConfiguration(scale, isSigned));
     const auto result = repository.toRaw(convertedCode, physical);
     QCOMPARE(result.has_value(), accepted);
     if (accepted) QCOMPARE(*result, payload);
@@ -301,7 +315,7 @@ void DeviceRepositoryTests::boundaryNoise_data() {
 
 void DeviceRepositoryTests::boundaryNoise() {
     QFETCH(bool, isSigned); QFETCH(double, boundary); QFETCH(double, direction); QFETCH(quint16, payload);
-    const auto repository = numericRepository(1, isSigned);
+    const DeviceRepository repository(numericConfiguration(1, isSigned));
     const double outside = std::nextafter(boundary, direction * std::numeric_limits<double>::infinity());
     const auto exact = repository.toRaw(convertedCode, boundary);
     const auto arithmeticNoise = repository.toRaw(convertedCode, outside);
@@ -322,7 +336,7 @@ void DeviceRepositoryTests::invalidMetadata_data() {
 void DeviceRepositoryTests::invalidMetadata() {
     QFETCH(double, scale);
     for (bool sign : {false, true}) {
-        auto repository = numericRepository(scale, sign);
+        DeviceRepository repository(numericConfiguration(scale, sign));
         QVERIFY(repository.update(unchangedCode, 42));
         QVERIFY(!repository.update(convertedCode, 0));
         QVERIFY(!repository.update(convertedCode, 0xffff));
@@ -335,7 +349,7 @@ void DeviceRepositoryTests::invalidMetadata() {
 
 void DeviceRepositoryTests::failedConversionPreservesValue() {
     const double largest = std::numeric_limits<double>::max();
-    auto repository = numericRepository(largest, false);
+    DeviceRepository repository(numericConfiguration(largest, false));
     QVERIFY(repository.update(convertedCode, 1));
     const auto saved = repository.value(convertedCode);
     QVERIFY(saved.isValid()); QCOMPARE(saved.toDouble(), largest);
@@ -343,12 +357,12 @@ void DeviceRepositoryTests::failedConversionPreservesValue() {
     QCOMPARE(repository.value(convertedCode), saved);
     QVERIFY(!repository.update(0xBEEF, 0));
     QCOMPARE(repository.value(convertedCode), saved);
-    auto signedRepository = numericRepository(-largest, true);
+    DeviceRepository signedRepository(numericConfiguration(-largest, true));
     QVERIFY(signedRepository.update(convertedCode, 0xffff));
     const auto signedSaved = signedRepository.value(convertedCode);
     QVERIFY(!signedRepository.update(convertedCode, 0x8000));
     QCOMPARE(signedRepository.value(convertedCode), signedSaved);
-    auto tinyRepository = numericRepository(std::numeric_limits<double>::denorm_min(), false);
+    DeviceRepository tinyRepository(numericConfiguration(std::numeric_limits<double>::denorm_min(), false));
     QVERIFY(tinyRepository.update(convertedCode, 1));
     QVERIFY(tinyRepository.value(convertedCode).toDouble() == std::numeric_limits<double>::denorm_min());
     const auto tinyPayload = tinyRepository.toRaw(convertedCode, tinyRepository.value(convertedCode).toDouble());
@@ -356,7 +370,7 @@ void DeviceRepositoryTests::failedConversionPreservesValue() {
 }
 
 void DeviceRepositoryTests::inverseDoesNotStore() {
-    auto repository = numericRepository(0.1, true);
+    DeviceRepository repository(numericConfiguration(0.1, true));
     const DeviceRepository& view = repository;
     const auto raw = view.toRaw(convertedCode, -10);
     QVERIFY(raw); QCOMPARE(*raw, quint16(0xff9c));
@@ -387,7 +401,7 @@ void DeviceRepositoryTests::roundTrips_data() {
 
 void DeviceRepositoryTests::roundTrips() {
     QFETCH(double, scale); QFETCH(bool, isSigned);
-    auto repository = numericRepository(scale, isSigned);
+    DeviceRepository repository(numericConfiguration(scale, isSigned));
     for (unsigned word = 0; word < 65536; ++word) {
         if (!repository.update(convertedCode, quint16(word))) QFAIL("Valid raw update rejected");
         const auto stored = repository.value(convertedCode);
@@ -399,7 +413,7 @@ void DeviceRepositoryTests::roundTrips() {
 
 void DeviceRepositoryTests::toleranceDoesNotRound() {
     for (quint8 precision : {quint8(0), quint8(2), quint8(255)}) {
-        auto repository = numericRepository(0.01, true, precision);
+        DeviceRepository repository(numericConfiguration(0.01, true, precision));
         QVERIFY(repository.update(convertedCode, 356));
         QCOMPARE(repository.value(convertedCode).toDouble(), 3.56);
         QVERIFY(repository.update(convertedCode, 0xff85));
@@ -408,6 +422,231 @@ void DeviceRepositoryTests::toleranceDoesNotRound() {
         QVERIFY(raw); QCOMPARE(*raw, quint16(0xff85));
         QCOMPARE(repository.configuration().parameters().value(convertedCode).tolerance, precision);
     }
+}
+
+void DeviceRepositoryTests::propertyNotifications_data() {
+    QTest::addColumn<quint16>("raw");
+    QTest::addColumn<bool>("isSigned");
+    QTest::addColumn<double>("scale");
+    QTest::addColumn<double>("expected");
+    QTest::addColumn<int>("type");
+    QTest::newRow("unsigned-zero") << quint16(0) << false << 1.0 << 0.0 << int(QMetaType::UInt);
+    QTest::newRow("unsigned-full-mask") << quint16(0xffff) << false << 1.0 << 65535.0 << int(QMetaType::UInt);
+    QTest::newRow("signed-zero") << quint16(0) << true << 1.0 << 0.0 << int(QMetaType::Int);
+    QTest::newRow("signed-negative") << quint16(0xffff) << true << 1.0 << -1.0 << int(QMetaType::Int);
+    QTest::newRow("scaled-zero") << quint16(0) << false << 0.01 << 0.0 << int(QMetaType::Double);
+    QTest::newRow("scaled-voltage") << quint16(356) << false << 0.01 << 3.56 << int(QMetaType::Double);
+    QTest::newRow("scaled-signed") << quint16(0xff9c) << true << 0.1 << -10.0 << int(QMetaType::Double);
+    QTest::newRow("negative-scale") << quint16(20) << false << -0.25 << -5.0 << int(QMetaType::Double);
+}
+
+void DeviceRepositoryTests::propertyNotifications() {
+    QFETCH(quint16, raw);
+    QFETCH(bool, isSigned);
+    QFETCH(double, scale);
+    QFETCH(double, expected);
+    QFETCH(int, type);
+    DeviceRepository repository(numericConfiguration(scale, isSigned));
+    QSignalSpy changed(&repository, &DeviceRepository::propertyChanged);
+    QSignalSpy cleared(&repository, &DeviceRepository::cleared);
+    QVERIFY(changed.isValid());
+    QVERIFY(cleared.isValid());
+    bool visibleDuringNotification = true;
+    int directCalls = 0;
+    connect(&repository, &DeviceRepository::propertyChanged, &repository,
+            [&](quint16 code, const QVariant& value) {
+        ++directCalls;
+        const auto stored = repository.value(code);
+        visibleDuringNotification &= stored.isValid() && stored.metaType() == value.metaType()
+            && stored.toDouble() == value.toDouble();
+    });
+
+    QVERIFY(!repository.value(convertedCode).isValid());
+    QVERIFY(repository.update(convertedCode, raw));
+    QCOMPARE(changed.count(), 1);
+    QCOMPARE(changed.at(0).at(0).value<quint16>(), convertedCode);
+    QCOMPARE(changed.at(0).at(1).metaType().id(), type);
+    QVERIFY(changed.at(0).at(1).toDouble() == expected);
+    QVERIFY(repository.update(convertedCode, raw));
+    QCOMPARE(changed.count(), 1);
+
+    QVERIFY(repository.update(convertedCode, raw ^ quint16(1)));
+    QCOMPARE(changed.count(), 2);
+    QCOMPARE(changed.at(1).at(0).value<quint16>(), convertedCode);
+    QCOMPARE(changed.at(1).at(1).metaType().id(), type);
+    QVERIFY(changed.at(1).at(1).toDouble() == repository.value(convertedCode).toDouble());
+    QVERIFY(changed.at(1).at(1).toDouble() != expected);
+    QCOMPARE(directCalls, 2);
+    QVERIFY(visibleDuringNotification);
+    QVERIFY(cleared.isEmpty());
+}
+
+void DeviceRepositoryTests::smallChanges_data() {
+    QTest::addColumn<double>("scale");
+    QTest::addColumn<quint8>("precision");
+    QTest::newRow("below-display-precision") << 0.0001 << quint8(2);
+    QTest::newRow("tiny-exact-change") << 1e-15 << quint8(0);
+    QTest::newRow("smallest-subnormal") << std::numeric_limits<double>::denorm_min() << quint8(2);
+}
+
+void DeviceRepositoryTests::smallChanges() {
+    QFETCH(double, scale);
+    QFETCH(quint8, precision);
+    DeviceRepository repository(numericConfiguration(scale, false, precision));
+    QSignalSpy changed(&repository, &DeviceRepository::propertyChanged);
+    QVERIFY(changed.isValid());
+    QVERIFY(repository.update(convertedCode, 1));
+    const double first = repository.value(convertedCode).toDouble();
+    QVERIFY(repository.update(convertedCode, 2));
+    const double second = repository.value(convertedCode).toDouble();
+    QVERIFY(first != second);
+    QCOMPARE(QString::number(first, 'f', precision), QString::number(second, 'f', precision));
+    QCOMPARE(changed.count(), 2);
+    QVERIFY(changed.at(0).at(1).toDouble() == first);
+    QVERIFY(changed.at(1).at(1).toDouble() == second);
+    QVERIFY(repository.update(convertedCode, 2));
+    QCOMPARE(changed.count(), 2);
+}
+
+void DeviceRepositoryTests::rejectedUpdatesAreSilent() {
+    DeviceRepository repository(numericConfiguration(std::numeric_limits<double>::max(), false));
+    QSignalSpy changed(&repository, &DeviceRepository::propertyChanged);
+    QSignalSpy cleared(&repository, &DeviceRepository::cleared);
+    QVERIFY(changed.isValid());
+    QVERIFY(cleared.isValid());
+    QVERIFY(!repository.update(0xBEEF, 0));
+    QVERIFY(!repository.update(convertedCode, 2));
+    QVERIFY(!repository.value(convertedCode).isValid());
+    QVERIFY(changed.isEmpty());
+    QVERIFY(repository.update(convertedCode, 1));
+    const auto saved = repository.value(convertedCode);
+    QCOMPARE(changed.count(), 1);
+    QVERIFY(!repository.update(convertedCode, 2));
+    QVERIFY(!repository.update(0xBEEF, 1));
+    QCOMPARE(repository.value(convertedCode), saved);
+    QCOMPARE(changed.count(), 1);
+    QVERIFY(cleared.isEmpty());
+
+    for (double scale : {0.0, std::numeric_limits<double>::quiet_NaN(),
+                         std::numeric_limits<double>::infinity()}) {
+        DeviceRepository invalid(numericConfiguration(scale, true));
+        QSignalSpy invalidChanged(&invalid, &DeviceRepository::propertyChanged);
+        QSignalSpy invalidCleared(&invalid, &DeviceRepository::cleared);
+        QVERIFY(invalidChanged.isValid());
+        QVERIFY(invalidCleared.isValid());
+        QVERIFY(!invalid.update(convertedCode, 0));
+        QVERIFY(!invalid.value(convertedCode).isValid());
+        invalid.clear();
+        QVERIFY(invalidChanged.isEmpty());
+        QVERIFY(invalidCleared.isEmpty());
+    }
+}
+
+void DeviceRepositoryTests::inverseIsSilent() {
+    DeviceRepository repository(numericConfiguration(0.1, true));
+    QSignalSpy changed(&repository, &DeviceRepository::propertyChanged);
+    QSignalSpy cleared(&repository, &DeviceRepository::cleared);
+    QVERIFY(changed.isValid());
+    QVERIFY(cleared.isValid());
+    const DeviceRepository& view = repository;
+    const auto raw = view.toRaw(convertedCode, -10);
+    QVERIFY(raw);
+    QCOMPARE(*raw, quint16(0xff9c));
+    QVERIFY(!view.value(convertedCode).isValid());
+    QVERIFY(!view.toRaw(0xBEEF, 0));
+    QVERIFY(!view.toRaw(convertedCode, std::numeric_limits<double>::infinity()));
+    QVERIFY(changed.isEmpty());
+    QVERIFY(repository.update(convertedCode, 130));
+    const auto saved = repository.value(convertedCode);
+    QVERIFY(view.toRaw(convertedCode, 5.5));
+    QVERIFY(!view.toRaw(convertedCode, 3276.8));
+    QCOMPARE(repository.value(convertedCode), saved);
+    QCOMPARE(changed.count(), 1);
+    QVERIFY(cleared.isEmpty());
+}
+
+void DeviceRepositoryTests::clearingNotifications() {
+    DeviceRepository repository(numericConfiguration(0.01, false));
+    QSignalSpy changed(&repository, &DeviceRepository::propertyChanged);
+    QSignalSpy cleared(&repository, &DeviceRepository::cleared);
+    QVERIFY(changed.isValid());
+    QVERIFY(cleared.isValid());
+    int directCalls = 0;
+    bool emptyDuringNotification = true;
+    connect(&repository, &DeviceRepository::cleared, &repository, [&] {
+        ++directCalls;
+        emptyDuringNotification &= !repository.value(convertedCode).isValid()
+            && !repository.value(unchangedCode).isValid();
+    });
+    repository.clear();
+    QVERIFY(cleared.isEmpty());
+    QVERIFY(repository.update(convertedCode, 0));
+    QVERIFY(repository.update(unchangedCode, 65535));
+    QCOMPARE(changed.count(), 2);
+    repository.clear();
+    QCOMPARE(cleared.count(), 1);
+    QCOMPARE(changed.count(), 2);
+    QVERIFY(emptyDuringNotification);
+    QCOMPARE(directCalls, 1);
+    QCOMPARE(repository.configuration().parameters().size(), 2);
+    QCOMPARE(repository.configuration().parameters().value(convertedCode).scale, 0.01);
+    repository.clear();
+    QCOMPARE(cleared.count(), 1);
+    QVERIFY(repository.update(convertedCode, 0));
+    QCOMPARE(changed.count(), 3);
+    QCOMPARE(changed.at(2).at(0).value<quint16>(), convertedCode);
+    QCOMPARE(changed.at(2).at(1).metaType().id(), int(QMetaType::Double));
+    QVERIFY(changed.at(2).at(1).toDouble() == 0.0);
+    repository.clear();
+    QCOMPARE(cleared.count(), 2);
+    QCOMPARE(changed.count(), 3);
+    QCOMPARE(directCalls, 2);
+    QVERIFY(emptyDuringNotification);
+}
+
+void DeviceRepositoryTests::independentNotifications() {
+    const auto config = numericConfiguration(0.01, false);
+    DeviceRepository first(config);
+    DeviceRepository second(config);
+    QSignalSpy firstChanged(&first, &DeviceRepository::propertyChanged);
+    QSignalSpy secondChanged(&second, &DeviceRepository::propertyChanged);
+    QSignalSpy firstCleared(&first, &DeviceRepository::cleared);
+    QSignalSpy secondCleared(&second, &DeviceRepository::cleared);
+    QVERIFY(firstChanged.isValid());
+    QVERIFY(secondChanged.isValid());
+    QVERIFY(firstCleared.isValid());
+    QVERIFY(secondCleared.isValid());
+    QVERIFY(first.update(convertedCode, 356));
+    QCOMPARE(firstChanged.count(), 1);
+    QVERIFY(secondChanged.isEmpty());
+    QVERIFY(!second.value(convertedCode).isValid());
+    QVERIFY(second.update(convertedCode, 0));
+    QCOMPARE(firstChanged.count(), 1);
+    QCOMPARE(secondChanged.count(), 1);
+    QVERIFY(first.value(convertedCode).toDouble() == 3.56);
+    QVERIFY(second.value(convertedCode).toDouble() == 0.0);
+    first.clear();
+    QCOMPARE(firstCleared.count(), 1);
+    QVERIFY(secondCleared.isEmpty());
+    QCOMPARE(firstChanged.count(), 1);
+    QCOMPARE(secondChanged.count(), 1);
+    QVERIFY(second.value(convertedCode).isValid());
+}
+
+void DeviceRepositoryTests::parentOwnership() {
+    DeviceRepository unparented(numericConfiguration(1.0, false));
+    QVERIFY(!unparented.parent());
+    QCOMPARE(unparented.thread(), QThread::currentThread());
+    QPointer<DeviceRepository> guard;
+    {
+        QObject parent;
+        guard = new DeviceRepository(numericConfiguration(1.0, false), &parent);
+        QCOMPARE(guard->parent(), &parent);
+        QCOMPARE(guard->thread(), parent.thread());
+        QCOMPARE(parent.children().size(), 1);
+        QVERIFY(guard->update(convertedCode, 0));
+    }
+    QVERIFY(guard.isNull());
 }
 
 QTEST_GUILESS_MAIN(DeviceRepositoryTests)

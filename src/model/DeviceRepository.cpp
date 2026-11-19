@@ -5,8 +5,8 @@
 #include <cmath>
 #include <limits>
 
-DeviceRepository::DeviceRepository(DeviceConfiguration configuration)
-    : m_configuration(std::move(configuration)) {}
+DeviceRepository::DeviceRepository(DeviceConfiguration configuration, QObject* parent)
+    : QObject(parent), m_configuration(std::move(configuration)) {}
 
 bool DeviceRepository::update(quint16 code, quint16 rawValue) {
     const auto it = m_configuration.parameters().constFind(code);
@@ -24,7 +24,10 @@ bool DeviceRepository::update(quint16 code, quint16 rawValue) {
         if (!std::isfinite(value)) return false;
         processed = value;
     }
+    const auto previous = m_values.constFind(code);
+    if (previous != m_values.cend() && previous.value().toDouble() == processed.toDouble()) return true;
     m_values.insert(code, processed);
+    emit propertyChanged(code, processed);
     return true;
 }
 
@@ -51,5 +54,7 @@ std::optional<quint16> DeviceRepository::toRaw(quint16 code, double value) const
 }
 
 void DeviceRepository::clear() {
+    if (m_values.isEmpty()) return;
     m_values.clear();
+    emit cleared();
 }

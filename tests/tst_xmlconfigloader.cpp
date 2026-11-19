@@ -96,15 +96,12 @@ void XmlConfigLoaderTests::genericModelAndRepository() {
     const auto renamed = loadText(xml.replace("PIC-8", "Other label"));
     QVERIFY(renamed.has_value()); QCOMPARE(renamed->modelId(), result->modelId());
     QCOMPARE(renamed->modelName(), QStringLiteral("Other label"));
-    const auto makeRepository = [] {
-        auto configuration = loadText(minimal());
-        if (!configuration) qFatal("Invalid generic XML fixture");
-        DeviceRepository repository(*configuration);
-        if (!configuration->addParameter(0x0043, {QStringLiteral("mA"), 0.1}))
-            qFatal("Invalid generic parameter fixture");
-        return repository;
-    };
-    auto first = makeRepository(); auto second = first;
+    auto configuration = loadText(minimal());
+    QVERIFY(configuration);
+    DeviceRepository first(*configuration);
+    QVERIFY(configuration->addParameter(0x0043, {QStringLiteral("mA"), 0.1}));
+    configuration.reset(); // The repository owns an independent configuration snapshot.
+    DeviceRepository second(first.configuration());
     QCOMPARE(first.configuration().modelName(), QStringLiteral("Example"));
     QVERIFY(!first.configuration().parameters().contains(0x0043));
     QVERIFY(!first.value(0x0042).isValid());

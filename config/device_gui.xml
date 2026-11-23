@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<GUI>
+  <Templates>
+    <Template name="pic-channel">
+      <Card title="Channel {n}" stateOffset="0" currentSetOffset="1" currentOffset="4"
+            voltageSetOffset="6" voltageOffset="9" runMask="0002" modeMask="0004"
+            start="0008" stop="0010" cc="0020" cv="0040">
+        <Overcurrent command="0801" mask="{bit}" message="Channel {n}: overcurrent protection"/>
+        <Overvoltage command="0802" mask="{bit}" message="Channel {n}: overvoltage protection"/>
+      </Card>
+      <Limits title="Channel {n}">
+        <CurrentMaximum title="Current maximum" offset="2" maxOffset="3"/>
+        <VoltageMaximum title="Voltage maximum" offset="7" maxOffset="8"/>
+        <CurrentProtection title="Current protection" offset="5" maxOffset="3"/>
+        <VoltageProtection title="Voltage protection" offset="A" maxOffset="8"/>
+      </Limits>
+    </Template>
+  </Templates>
+  <Device id="1700">
+    <Description>PIC-8 physical channels</Description>
+    <Info title="Serial number" code="0701"/>
+    <Info title="Firmware" code="0710"/>
+    <Info title="Input voltage" code="0408"/>
+    <Info title="PCB temperature" code="0AF4"/>
+    <Use template="pic-channel" first="1" count="8" base="0011" stride="0010"/>
+  </Device>
+  <Device id="1701">
+    <Description>PIC-16 physical channels</Description>
+    <Info title="Serial number" code="0701"/>
+    <Info title="Firmware" code="0710"/>
+    <Info title="Input voltage" code="0408"/>
+    <Info title="PCB temperature" code="0AF4"/>
+    <Use template="pic-channel" first="1" count="16" base="0011" stride="0010"/>
+  </Device>
+</GUI>

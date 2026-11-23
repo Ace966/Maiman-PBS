@@ -46,13 +46,21 @@ target_link_libraries(DeviceFactoryTests PRIVATE MaimanPBS::Config Qt6::Test)
 add_test(NAME device_factory COMMAND DeviceFactoryTests -o -,txt
     -o "${CMAKE_CURRENT_BINARY_DIR}/device-factory.txt,txt")
 
+add_executable(GuiFactoryTests tst_guifactory.cpp)
+set_target_properties(GuiFactoryTests PROPERTIES AUTOMOC ON)
+target_link_libraries(GuiFactoryTests PRIVATE MaimanPBS::GuiConfig MaimanPBS::Config Qt6::Test)
+add_test(NAME gui_factory COMMAND GuiFactoryTests -o -,txt
+    -o "${CMAKE_CURRENT_BINARY_DIR}/gui-factory.txt,txt")
+
 add_executable(XmlParserTests tst_xmlparser.cpp)
 set_target_properties(XmlParserTests PROPERTIES AUTOMOC ON)
 target_link_libraries(XmlParserTests PRIVATE MaimanPBS::Xml Qt6::Test)
 add_test(NAME xml_parser COMMAND XmlParserTests -o -,txt
     -o "${CMAKE_CURRENT_BINARY_DIR}/xml-parser.txt,txt")
 
-set_tests_properties(communication_foundation serial_data_source communication_worker pic_text_protocol device_repository xml_config_loader xml_parser device_factory PROPERTIES TIMEOUT 15)
+set_tests_properties(communication_foundation serial_data_source communication_worker pic_text_protocol device_repository xml_config_loader xml_parser device_factory gui_factory PROPERTIES TIMEOUT 15)
+# The full Worker suite exceeds 15s; its individual timing assertions are unchanged.
+set_tests_properties(communication_worker PROPERTIES TIMEOUT 30)
 
 # Make CTest find Qt and compiler runtime DLLs without a deployment step.
 if(WIN32)
@@ -63,7 +71,7 @@ if(WIN32)
         get_filename_component(compiler_bin "${CMAKE_CXX_COMPILER}" DIRECTORY)
         list(APPEND runtime_environment "PATH=path_list_prepend:${compiler_bin}")
     endif()
-    set_tests_properties(communication_foundation serial_data_source communication_worker pic_text_protocol device_repository xml_config_loader xml_parser device_factory PROPERTIES
+    set_tests_properties(communication_foundation serial_data_source communication_worker pic_text_protocol device_repository xml_config_loader xml_parser device_factory gui_factory PROPERTIES
         ENVIRONMENT_MODIFICATION "${runtime_environment}"
     )
 endif()

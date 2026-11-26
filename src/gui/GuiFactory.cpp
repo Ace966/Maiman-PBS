@@ -127,8 +127,10 @@ std::optional<CardDesc> parseCard(const TreeItem& item,
     if (!error.isEmpty()) return std::nullopt;
     for (const auto& mapping : {std::pair{"state", &result.state},
                                 std::pair{"currentSet", &result.currentSet},
+                                std::pair{"currentMax", &result.currentMax},
                                 std::pair{"current", &result.current},
                                 std::pair{"voltageSet", &result.voltageSet},
+                                std::pair{"voltageMax", &result.voltageMax},
                                 std::pair{"voltage", &result.voltage}}) {
         const auto code = reg(item, mapping.first, config, error);
         if (!code) return std::nullopt;

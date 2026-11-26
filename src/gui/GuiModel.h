@@ -43,8 +43,10 @@ public:
     QString title;
     quint16 state{0};
     quint16 currentSet{0};
+    quint16 currentMax{0};
     quint16 current{0};
     quint16 voltageSet{0};
+    quint16 voltageMax{0};
     quint16 voltage{0};
     quint16 runMask{0};
     quint16 modeMask{0};

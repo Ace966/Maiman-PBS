@@ -75,8 +75,10 @@ void GuiFactoryTests::catalog() {
         QCOMPARE(card.title, QStringLiteral("Channel #%1").arg(i + 1));
         QCOMPARE(card.state, base);
         QCOMPARE(card.currentSet, quint16(base + 1));
+        QCOMPARE(card.currentMax, quint16(base + 2));
         QCOMPARE(card.current, quint16(base + 4));
         QCOMPARE(card.voltageSet, quint16(base + 6));
+        QCOMPARE(card.voltageMax, quint16(base + 7));
         QCOMPARE(card.voltage, quint16(base + 9));
         QCOMPARE(card.runMask, quint16(0x0002));
         QCOMPARE(card.modeMask, quint16(0x0004));
@@ -118,6 +120,14 @@ void GuiFactoryTests::explicitConfiguration() {
     QVERIFY(gui);
     QCOMPARE(gui->cards[0].current, quint16(0x0016));
     QCOMPARE(gui->cards[1].current, quint16(0x0025));
+    xml.replace(R"(currentMax="0013")", R"(currentMax="0014")");
+    xml.replace(R"(voltageMax="0018")", R"(voltageMax="0019")");
+    const auto changedMaximums = load(xml, *config);
+    QVERIFY(changedMaximums);
+    QCOMPARE(changedMaximums->cards[0].currentMax, quint16(0x0014));
+    QCOMPARE(changedMaximums->cards[0].voltageMax, quint16(0x0019));
+    QCOMPARE(changedMaximums->cards[1].currentMax, quint16(0x0023));
+    QCOMPARE(changedMaximums->cards[1].voltageMax, quint16(0x0028));
 }
 
 void GuiFactoryTests::invalidConfiguration_data() {
@@ -128,6 +138,10 @@ void GuiFactoryTests::invalidConfiguration_data() {
     };
     QTest::newRow("malformed") << QByteArray("<GUI><Device></GUI>") << QStringLiteral("XML at line");
     QTest::newRow("unknown-model") << changed(R"(id="1700")", R"(id="2200")") << QStringLiteral("Unknown GUI model");
+    QTest::newRow("missing-current-maximum") << changed(R"( currentMax="0013")", "") << QStringLiteral("missing currentMax");
+    QTest::newRow("missing-voltage-maximum") << changed(R"( voltageMax="0018")", "") << QStringLiteral("missing voltageMax");
+    QTest::newRow("invalid-current-maximum") << changed(R"(currentMax="0013")", R"(currentMax="F000")") << QStringLiteral("nonexistent register");
+    QTest::newRow("invalid-voltage-maximum") << changed(R"(voltageMax="0018")", R"(voltageMax="F000")") << QStringLiteral("nonexistent register");
     QTest::newRow("invalid-register") << changed(R"(current="0015")", R"(current="F000")") << QStringLiteral("nonexistent register");
     QTest::newRow("duplicate-channel") << changed(R"(channel="2" title="Channel #2")", R"(channel="1" title="Channel #2")") << QStringLiteral("Duplicate channel");
     QTest::newRow("invalid-mask") << changed(R"(mask="0001")", R"(mask="10000")") << QStringLiteral("invalid mask");

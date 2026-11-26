@@ -1,0 +1,5 @@
+add_library(maiman_pbs_gui_config STATIC GuiModel.h GuiFactory.h GuiFactory.cpp)
+add_library(MaimanPBS::GuiConfig ALIAS maiman_pbs_gui_config)
+target_compile_features(maiman_pbs_gui_config PUBLIC cxx_std_17)
+target_include_directories(maiman_pbs_gui_config PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(maiman_pbs_gui_config PUBLIC MaimanPBS::Model PRIVATE MaimanPBS::Xml)

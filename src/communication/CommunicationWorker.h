@@ -1,32 +1,31 @@
 #pragma once
 #include "IDataSource.h"
 #include "PICTextProtocol.h"
-#include <QDeadlineTimer>
+#include <QMutex>
+#include <QSemaphore>
+#include <QThread>
 #include <QQueue>
 #include <functional>
 #include <optional>
 
-class QTimer;
 class CommunicationConnection;
 
-// Hosted by CommunicationConnection; all mutable state and I/O stay in its thread.
-class CommunicationWorker : public QObject {
+// The QThread object stays in its creator thread; run() owns all transport I/O.
+class CommunicationWorker : public QThread {
     Q_OBJECT
 public:
     static constexpr int QueueCapacity = 32;
-    using SourceFactory = std::function<IDataSource*()>; // Called in the worker thread.
+    using SourceFactory = std::function<IDataSource*()>; // Creates a new parentless source in the worker thread.
     enum class Kind { Read, Write };
     enum class Outcome { ReadResponse, BytesSent, DeviceError, NonexistentParameter,
                          Timeout, TransportError, Cancelled, NotConnected };
     struct Request {
-        quint64 id;
         Kind kind;
         quint16 parameter;
         quint16 value;
         int timeoutMs;
     };
     struct Result {
-        quint64 id;
         Kind kind;
         quint16 parameter;
         quint16 value; // Raw value on ReadResponse; otherwise the submitted value.
@@ -35,47 +34,34 @@ public:
         QString error;
     };
 signals:
-    void connectionChanged(bool connected, const QString& error, quint64 epoch);
+    // Acknowledges an open/disconnect control after all old transaction results.
+    void connectionChanged(bool connected, const QString& error);
     void requestFinished(const CommunicationWorker::Result& result);
-    void bytesSent(quint64 id);
-    void responseReceived(const PICTextProtocol::Response& response, quint64 epoch);
-    void framesDiscarded(qsizetype count, quint64 epoch);
 private:
     friend class CommunicationConnection;
-    explicit CommunicationWorker(SourceFactory factory);
-private slots:
-    void open(const SerialSettings& settings, quint64 epoch);
-    void disconnectPort(quint64 epoch);
-    void enqueue(const Request& request, quint64 epoch);
-    void cancel(quint64 id);
+    explicit CommunicationWorker(SourceFactory factory, QObject* parent);
+    ~CommunicationWorker() override;
+    // Thread-safe commands. No slot or queued invocation executes inside run().
+    void open(const SerialSettings& settings);
+    void disconnectPort();
+    void setInterCommandDelayMs(int delayMs);
+    void enqueue(const Request& request);
     void shutdown();
-private:
-    void scheduleNext();
-    void startNext();
-    void pumpOutput();
-    void readAvailable();
-    void postPump();
-    void postRead();
-    bool expired();
-    void finish(Outcome outcome, const QString& error = {});
-    void failConnection(Outcome outcome, const QString& error);
-    void closeSession(Outcome outcome, const QString& error, bool notify);
-    void cancelled(const Request& request, Outcome outcome, const QString& error);
-    struct Active {
-        Request request;
-        QByteArray bytes;
-        qsizetype offset{0};
-        bool sent{false};
-        std::optional<PICTextProtocol::Response> response;
+    void run() override;
+    Result transact(IDataSource& source, PICTextProtocol& protocol, const Request& request);
+    void wakeLocked();
+    QList<Request> takeQueuedLocked();
+    void complete(const Request& request, Outcome outcome);
+    struct Control {
+        SerialSettings settings;
+        bool opening;
     };
     SourceFactory m_factory;
-    IDataSource* m_source{nullptr}; // Owned QObject child.
-    QTimer* m_timer{nullptr}; // Created and used in worker thread.
-    quint64 m_epoch{0};
-    bool m_shutdown{false}, m_nextPosted{false}, m_pumpPosted{false}, m_readPosted{false};
+    int m_interCommandDelayMs{0};
+    QMutex m_mutex;
+    QSemaphore m_wake;
+    bool m_wakePending{false}, m_stopping{false}, m_connected{false};
+    std::optional<Control> m_control;
     QQueue<Request> m_reads, m_writes;
-    std::optional<Active> m_active;
-    QDeadlineTimer m_deadline;
-    PICTextProtocol m_protocol;
 };
 Q_DECLARE_METATYPE(CommunicationWorker::Result)

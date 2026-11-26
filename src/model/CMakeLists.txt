@@ -3,6 +3,7 @@ add_library(maiman_pbs_model STATIC
     DeviceRepository.h
     DeviceRepository.cpp
 )
+set_target_properties(maiman_pbs_model PROPERTIES AUTOMOC ON)
 add_library(MaimanPBS::Model ALIAS maiman_pbs_model)
 target_compile_features(maiman_pbs_model PUBLIC cxx_std_17)
 target_include_directories(maiman_pbs_model PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

@@ -1,209 +1,264 @@
 #include "CommunicationWorker.h"
-#include <QThread>
-#include <QTimer>
+#include <QDeadlineTimer>
+#include <QScopedPointer>
 #include <utility>
 
-CommunicationWorker::CommunicationWorker(SourceFactory factory) : m_factory(std::move(factory)) {}
+CommunicationWorker::CommunicationWorker(SourceFactory factory, QObject* parent)
+    : QThread(parent), m_factory(std::move(factory)) {}
 
-void CommunicationWorker::open(const SerialSettings& settings, quint64 epoch) {
-    Q_ASSERT(thread() == QThread::currentThread());
-    m_epoch = epoch;
-    closeSession(Outcome::Cancelled, QStringLiteral("Connection replaced."), false);
-    if (m_shutdown) return;
-    if (!m_timer) {
-        m_timer = new QTimer(this);
-        m_timer->setSingleShot(true);
-        m_timer->setTimerType(Qt::PreciseTimer);
-        connect(m_timer, &QTimer::timeout, this, [this] {
-            if (!m_active || expired()) return;
-            m_timer->start(int(qMax<qint64>(1, m_deadline.remainingTime())));
-        });
+CommunicationWorker::~CommunicationWorker() {
+    shutdown();
+    wait();
+}
+
+void CommunicationWorker::wakeLocked() {
+    if (!m_wakePending) {
+        m_wakePending = true;
+        m_wake.release();
     }
-    m_source = m_factory();
-    if (!m_source) { emit connectionChanged(false, QStringLiteral("Source factory returned no source."), epoch); return; }
-    Q_ASSERT(m_source->thread() == thread() && !m_source->parent());
-    m_source->setParent(this);
-    if (!m_source->open(settings)) {
-        const auto error = m_source->errorString();
-        closeSession(Outcome::Cancelled, error, false);
-        emit connectionChanged(false, error, epoch);
-        return;
-    }
-    auto* source = m_source;
-    connect(source, &IDataSource::readyRead, this, [this, source, epoch] {
-        if (source == m_source && epoch == m_epoch) readAvailable();
-    }, Qt::QueuedConnection);
-    connect(source, &IDataSource::bytesWritten, this, [this, source, epoch](qint64) {
-        if (source == m_source && epoch == m_epoch) pumpOutput();
-    }, Qt::QueuedConnection);
-    connect(source, &IDataSource::errorOccurred, this, [this, source, epoch](const QString& error) {
-        if (source == m_source && epoch == m_epoch) failConnection(Outcome::TransportError, error);
-    }, Qt::QueuedConnection);
-    emit connectionChanged(true, {}, epoch);
-    if (source->bytesAvailable() > 0) postRead();
 }
 
-void CommunicationWorker::disconnectPort(quint64 epoch) {
-    m_epoch = epoch;
-    closeSession(Outcome::Cancelled, QStringLiteral("Disconnected."), true);
+void CommunicationWorker::open(const SerialSettings& settings) {
+    QMutexLocker lock(&m_mutex);
+    if (m_stopping) return;
+    m_control = Control{settings, true};
+    m_connected = false;
+    wakeLocked();
 }
 
-void CommunicationWorker::enqueue(const Request& request, quint64 epoch) {
-    Q_ASSERT(thread() == QThread::currentThread());
-    if (m_shutdown || !m_source || epoch != m_epoch) {
-        cancelled(request, Outcome::NotConnected, QStringLiteral("Connection is not available."));
-        return;
-    }
-    auto& queue = request.kind == Kind::Write ? m_writes : m_reads;
-    if (queue.size() == QueueCapacity) {
-        cancelled(request, Outcome::Cancelled, QStringLiteral("Worker queue is full."));
-        return;
-    }
-    queue.enqueue(request);
-    scheduleNext();
+void CommunicationWorker::disconnectPort() {
+    QMutexLocker lock(&m_mutex);
+    if (m_stopping) return;
+    m_control = Control{{}, false};
+    m_connected = false;
+    wakeLocked();
 }
 
-void CommunicationWorker::scheduleNext() {
-    if (m_nextPosted || m_shutdown) return;
-    m_nextPosted = true;
-    QMetaObject::invokeMethod(this, [this] { m_nextPosted = false; startNext(); }, Qt::QueuedConnection);
+void CommunicationWorker::setInterCommandDelayMs(int delayMs) {
+    QMutexLocker lock(&m_mutex);
+    m_interCommandDelayMs = delayMs;
 }
 
-void CommunicationWorker::startNext() {
-    if (m_shutdown || !m_source || m_active || (m_writes.isEmpty() && m_reads.isEmpty())) return;
-    const auto request = !m_writes.isEmpty() ? m_writes.dequeue() : m_reads.dequeue();
-    m_active = Active{request, request.kind == Kind::Write
-        ? PICTextProtocol::encodeWrite(request.parameter, request.value)
-        : PICTextProtocol::encodeRead(request.parameter)};
-    m_deadline = QDeadlineTimer(request.timeoutMs, Qt::PreciseTimer);
-    m_timer->start(request.timeoutMs);
-    pumpOutput();
-}
-
-bool CommunicationWorker::expired() {
-    if (!m_active || !m_deadline.hasExpired()) return false;
-    failConnection(Outcome::Timeout, QStringLiteral("Transaction deadline expired; explicit reconnect required."));
-    return true;
-}
-
-void CommunicationWorker::postPump() {
-    if (m_pumpPosted) return;
-    m_pumpPosted = true;
-    QMetaObject::invokeMethod(this, [this] { m_pumpPosted = false; pumpOutput(); }, Qt::QueuedConnection);
-}
-
-void CommunicationWorker::pumpOutput() {
-    if (!m_active || !m_source || expired()) return;
-    if (m_source->hasError()) { failConnection(Outcome::TransportError, m_source->errorString()); return; }
-    if (m_active->offset < m_active->bytes.size()) {
-        const auto remaining = m_active->bytes.sliced(m_active->offset);
-        const auto count = m_source->write(remaining);
-        if (count < 0 || count > remaining.size() || m_source->hasError()) {
-            failConnection(Outcome::TransportError, QStringLiteral("Transport write failed: %1").arg(m_source->errorString()));
-            return;
-        }
-        m_active->offset += count;
-        if (count == 0) return;
-    }
-    const auto pending = m_source->bytesToWrite();
-    if (pending < 0 || m_source->hasError()) { failConnection(Outcome::TransportError, m_source->errorString()); return; }
-    if (m_active->offset < m_active->bytes.size()) {
-        if (pending == 0) postPump();
-        return;
-    }
-    if (pending != 0) return;
-    if (!m_active->sent) { m_active->sent = true; emit bytesSent(m_active->request.id); }
-    if (m_active->response) {
-        const auto kind = m_active->response->kind;
-        finish(kind == PICTextProtocol::Kind::DeviceError ? Outcome::DeviceError
-            : kind == PICTextProtocol::Kind::NonexistentParameter ? Outcome::NonexistentParameter : Outcome::ReadResponse);
-    } else if (m_active->request.kind == Kind::Write) finish(Outcome::BytesSent);
-}
-
-void CommunicationWorker::postRead() {
-    if (m_readPosted) return;
-    m_readPosted = true;
-    QMetaObject::invokeMethod(this, [this] { m_readPosted = false; readAvailable(); }, Qt::QueuedConnection);
-}
-
-void CommunicationWorker::readAvailable() {
-    if (!m_source || expired()) return;
-    if (m_source->hasError()) { failConnection(Outcome::TransportError, m_source->errorString()); return; }
-    const auto available = m_source->bytesAvailable();
-    if (available < 0) { failConnection(Outcome::TransportError, QStringLiteral("Invalid available-byte count.")); return; }
-    if (!available) return;
-    QByteArray bytes(qMin<qint64>(available, 4096), Qt::Uninitialized);
-    const auto count = m_source->read(bytes.data(), bytes.size());
-    if (count < 0 || count > bytes.size() || m_source->hasError()) {
-        failConnection(Outcome::TransportError, QStringLiteral("Transport read failed: %1").arg(m_source->errorString()));
-        return;
-    }
-    bytes.resize(count);
-    const auto parsed = m_protocol.append(bytes);
-    for (const auto& response : parsed.responses) {
-        if (m_active && expired()) break;
-        emit responseReceived(response, m_epoch);
-        if (!m_active || m_active->response) continue;
-        if ((response.kind == PICTextProtocol::Kind::ParameterValue
-             && m_active->request.kind == Kind::Read && response.parameter == m_active->request.parameter)
-            || response.kind == PICTextProtocol::Kind::DeviceError
-            || response.kind == PICTextProtocol::Kind::NonexistentParameter) {
-            m_active->response = response;
-            if (m_active->sent) pumpOutput();
-        }
-    }
-    if (parsed.discardedFrames && m_source) emit framesDiscarded(parsed.discardedFrames, m_epoch);
-    if (m_source && count > 0 && m_source->bytesAvailable() > 0) postRead();
-}
-
-void CommunicationWorker::finish(Outcome outcome, const QString& error) {
-    if (!m_active) return;
-    const auto active = *m_active;
-    m_active.reset();
-    m_timer->stop();
-    Result result{active.request.id, active.request.kind, active.request.parameter, active.request.value, outcome, 0, error};
-    if (active.response) {
-        if (outcome == Outcome::ReadResponse) result.value = active.response->value;
-        result.errorCode = active.response->errorCode;
-    }
-    emit requestFinished(result);
-    scheduleNext(); // Never select the next request inside this input chunk.
-}
-
-void CommunicationWorker::cancelled(const Request& request, Outcome outcome, const QString& error) {
-    emit requestFinished(Result{request.id, request.kind, request.parameter, request.value, outcome, 0, error});
-}
-
-void CommunicationWorker::closeSession(Outcome outcome, const QString& error, bool notify) {
-    if (m_timer) m_timer->stop();
-    auto* source = m_source;
-    m_source = nullptr;
-    if (source) { disconnect(source, nullptr, this, nullptr); source->close(); delete source; }
-    m_protocol.reset();
-    if (notify) emit connectionChanged(false, error, m_epoch);
-    if (m_active) finish(outcome, error);
-    while (!m_writes.isEmpty()) cancelled(m_writes.dequeue(), Outcome::Cancelled, error);
-    while (!m_reads.isEmpty()) cancelled(m_reads.dequeue(), Outcome::Cancelled, error);
-}
-
-void CommunicationWorker::failConnection(Outcome outcome, const QString& error) { closeSession(outcome, error, true); }
-
-void CommunicationWorker::cancel(quint64 id) {
-    if (m_active && m_active->request.id == id) {
-        failConnection(Outcome::Cancelled, QStringLiteral("Active request cancelled; explicit reconnect required."));
-        return;
-    }
-    for (auto* queue : {&m_writes, &m_reads}) {
-        for (qsizetype i = 0; i < queue->size(); ++i) if (queue->at(i).id == id) {
-            const auto request = queue->takeAt(i);
-            cancelled(request, Outcome::Cancelled, QStringLiteral("Queued request cancelled."));
+void CommunicationWorker::enqueue(const Request& request) {
+    {
+        QMutexLocker lock(&m_mutex);
+        if (m_connected) {
+            // The sole facade bounds outstanding requests, including active and undelivered results.
+            auto& queue = request.kind == Kind::Write ? m_writes : m_reads;
+            queue.enqueue(request);
+            wakeLocked();
             return;
         }
     }
+    complete(request, Outcome::NotConnected);
 }
 
 void CommunicationWorker::shutdown() {
-    Q_ASSERT(thread() == QThread::currentThread());
-    m_shutdown = true;
-    closeSession(Outcome::Cancelled, QStringLiteral("Connection shut down."), true);
+    QMutexLocker lock(&m_mutex);
+    m_stopping = true;
+    m_connected = false;
+    wakeLocked();
+}
+
+QList<CommunicationWorker::Request> CommunicationWorker::takeQueuedLocked() {
+    QList<Request> requests;
+    while (!m_writes.isEmpty()) requests.append(m_writes.dequeue());
+    while (!m_reads.isEmpty()) requests.append(m_reads.dequeue());
+    return requests;
+}
+
+void CommunicationWorker::complete(const Request& request, Outcome outcome) {
+    emit requestFinished(Result{request.kind, request.parameter, request.value, outcome, 0, {}});
+}
+
+void CommunicationWorker::run() {
+    QScopedPointer<IDataSource> source;
+    PICTextProtocol protocol;
+    QDeadlineTimer nextCommand(0, Qt::PreciseTimer);
+    bool delayPending = false;
+    const auto close = [&] {
+        if (source) {
+            source->close();
+            source.reset();
+        }
+        protocol.reset();
+        nextCommand = QDeadlineTimer(0, Qt::PreciseTimer);
+    };
+    for (;;) {
+        // Neither wait holds the state mutex; control/submission wakes interrupt the delay.
+        bool woke = true;
+        if (delayPending) woke = m_wake.tryAcquire(1, nextCommand);
+        else m_wake.acquire();
+        delayPending = false;
+        std::optional<Control> control;
+        std::optional<Request> request;
+        QList<Request> cancelled;
+        bool stopping;
+        {
+            QMutexLocker lock(&m_mutex);
+            if (woke) m_wakePending = false; // Expiry must not clear a concurrent producer's token.
+            stopping = m_stopping;
+            if (stopping || m_control) {
+                control = std::exchange(m_control, std::nullopt);
+                m_connected = false;
+                cancelled = takeQueuedLocked();
+            } else if (m_connected && (!m_writes.isEmpty() || !m_reads.isEmpty())) {
+                if (nextCommand.hasExpired()) {
+                    request = !m_writes.isEmpty() ? m_writes.dequeue() : m_reads.dequeue();
+                } else delayPending = true; // Still use a timed wait if expiry races the next iteration.
+            }
+            if (!stopping && !delayPending && (!m_writes.isEmpty() || !m_reads.isEmpty())) wakeLocked();
+        }
+        if (stopping || control) {
+            close();
+            for (const auto& queued : cancelled) complete(queued, Outcome::Cancelled);
+            if (stopping) return;
+            bool opened = false;
+            QString error;
+            if (control->opening) {
+                source.reset(m_factory());
+                if (source) {
+                    opened = source->open(control->settings);
+                    if (!opened) error = source->errorString();
+                } else error = QStringLiteral("Source factory returned no source.");
+                if (!opened) close();
+            }
+            {
+                QMutexLocker lock(&m_mutex);
+                m_connected = opened && !m_stopping;
+            }
+            emit connectionChanged(opened, error);
+            continue;
+        }
+        if (!request) continue;
+        auto result = transact(*source, protocol, *request);
+        bool closing;
+        {
+            QMutexLocker lock(&m_mutex);
+            // Completion and connection teardown have one mutex-protected decision point.
+            if (m_stopping || m_control) {
+                result.outcome = Outcome::Cancelled;
+                result.value = request->value;
+                result.errorCode = 0;
+                result.error.clear();
+            }
+            closing = result.outcome == Outcome::Timeout || result.outcome == Outcome::TransportError
+                || result.outcome == Outcome::Cancelled;
+            if (closing) {
+                m_connected = false;
+                cancelled = takeQueuedLocked();
+            }
+            else nextCommand = QDeadlineTimer(m_interCommandDelayMs, Qt::PreciseTimer);
+        }
+        if (closing) close();
+        emit requestFinished(result);
+        for (const auto& queued : cancelled) complete(queued, Outcome::Cancelled);
+    }
+}
+
+CommunicationWorker::Result CommunicationWorker::transact(
+    IDataSource& source, PICTextProtocol& protocol, const Request& request) {
+    QDeadlineTimer deadline(request.timeoutMs, Qt::PreciseTimer);
+    Result result{request.kind, request.parameter, request.value, Outcome::BytesSent, 0, {}};
+    std::optional<PICTextProtocol::Response> response;
+    const auto check = [&] {
+        {
+            QMutexLocker lock(&m_mutex);
+            if (m_stopping || m_control) {
+                result.outcome = Outcome::Cancelled;
+                return false;
+            }
+        }
+        if (deadline.hasExpired()) {
+            result.outcome = Outcome::Timeout;
+            return false;
+        }
+        if (source.hasError()) {
+            result.outcome = Outcome::TransportError;
+            result.error = source.errorString();
+            return false;
+        }
+        return true;
+    };
+    const auto readAvailable = [&] {
+        if (!check()) return false;
+        const auto available = source.bytesAvailable();
+        if (available < 0) {
+            result.outcome = Outcome::TransportError;
+            return false;
+        }
+        if (!available) return true;
+        QByteArray bytes(qMin<qint64>(available, 4096), Qt::Uninitialized);
+        const auto count = source.read(bytes.data(), bytes.size());
+        if (count < 0 || count > bytes.size() || source.hasError()) {
+            result.outcome = Outcome::TransportError;
+            result.error = source.errorString();
+            return false;
+        }
+        bytes.resize(count);
+        const auto parsed = protocol.append(bytes);
+        for (const auto& received : parsed.responses) {
+            if (!response && ((received.kind == PICTextProtocol::Kind::ParameterValue
+                    && request.kind == Kind::Read && received.parameter == request.parameter)
+                    || received.kind == PICTextProtocol::Kind::DeviceError
+                    || received.kind == PICTextProtocol::Kind::NonexistentParameter)) response = received;
+        }
+        return true;
+    };
+    const auto wait = [&](bool writing) {
+        // Slices only bound control latency; they never refresh the transaction deadline.
+        const int remaining = int(qMin<qint64>(20, deadline.remainingTime()));
+        if (remaining > 0) {
+            if (writing) source.waitForBytesWritten(remaining);
+            else source.waitForReadyRead(remaining);
+        }
+    };
+    const auto bytes = request.kind == Kind::Write ? PICTextProtocol::encodeWrite(request.parameter, request.value)
+                                                  : PICTextProtocol::encodeRead(request.parameter);
+    qsizetype offset = 0;
+    for (;;) {
+        if (!readAvailable()) return result;
+        auto pending = source.bytesToWrite();
+        if (pending < 0) {
+            result.outcome = Outcome::TransportError;
+            return result;
+        }
+        qint64 accepted = 0;
+        if (!pending && offset < bytes.size()) {
+            const auto remaining = bytes.sliced(offset);
+            accepted = source.write(remaining);
+            if (accepted < 0 || accepted > remaining.size() || source.hasError()) {
+                result.outcome = Outcome::TransportError;
+                result.error = source.errorString();
+                return result;
+            }
+            offset += accepted;
+            if (!readAvailable()) return result; // Retain an early response until output drains.
+            pending = source.bytesToWrite();
+            if (pending < 0) {
+                result.outcome = Outcome::TransportError;
+                return result;
+            }
+        }
+        if (!check()) return result;
+        if (offset == bytes.size() && pending == 0) break;
+        if (accepted > 0 && pending == 0) continue; // Finite progress, at most the command length.
+        wait(pending > 0); // A zero write without pending bytes waits for input/expiry, never spins.
+    }
+    while (request.kind == Kind::Read && !response) {
+        if (!readAvailable()) return result;
+        if (!response) wait(false);
+    }
+    if (!check()) return result;
+    if (response) {
+        if (response->kind == PICTextProtocol::Kind::DeviceError) {
+            result.outcome = Outcome::DeviceError;
+            result.errorCode = response->errorCode;
+        } else if (response->kind == PICTextProtocol::Kind::NonexistentParameter) result.outcome = Outcome::NonexistentParameter;
+        else {
+            result.outcome = Outcome::ReadResponse;
+            result.value = response->value;
+        }
+    }
+    return result; // Standard Write success is local BytesSent, never device-state confirmation.
 }

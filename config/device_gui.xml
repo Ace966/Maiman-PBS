@@ -1,0 +1,312 @@
+<GUI>
+<Device id="1700">
+<Content>
+<Description>PIC-8 controller. Physical channels: 8. CC/CV output control.</Description>
+</Content>
+<Header>
+<Param real="0AF4">PCB temperature</Param>
+</Header>
+<ParamControls>
+<Param real="0701">Serial Number</Param>
+<Param real="0710">Firmware</Param>
+<Param real="0408">Input Voltage</Param>
+<Param real="0AF4">PCB Temperature</Param>
+</ParamControls>
+<Leds>
+<Led label="Overheat warning">
+<LedMask code="0800" mask="0010" maskColor="#f1c40f" defaultColor="#171717">Overheat warning</LedMask>
+</Led>
+<Led label="Overheat">
+<LedMask code="0800" mask="0020" maskColor="#e74c3c" defaultColor="#171717">Overheat protection</LedMask>
+</Led>
+<Led label="Input voltage exceeds limits">
+<LedMask code="0800" mask="0040" maskColor="#e74c3c" defaultColor="#171717">Input voltage exceeds limits</LedMask>
+</Led>
+<Led label="Overcurrent">
+<LedMask code="0801" mask="00FF" maskColor="#e74c3c" defaultColor="#171717">Overcurrent protection on one or more channels</LedMask>
+</Led>
+<Led label="Overvoltage">
+<LedMask code="0802" mask="00FF" maskColor="#e74c3c" defaultColor="#171717">Overvoltage protection on one or more channels</LedMask>
+</Led>
+</Leds>
+<Cards>
+<Card channel="1" title="Channel #1" state="0011" currentSet="0012" currentMax="0013" current="0015" voltageSet="0017" voltageMax="0018" voltage="001A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0001" message="Channel 1: overcurrent protection"/>
+<Overvoltage command="0802" mask="0001" message="Channel 1: overvoltage protection"/>
+</Card>
+<Card channel="2" title="Channel #2" state="0021" currentSet="0022" currentMax="0023" current="0025" voltageSet="0027" voltageMax="0028" voltage="002A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0002" message="Channel 2: overcurrent protection"/>
+<Overvoltage command="0802" mask="0002" message="Channel 2: overvoltage protection"/>
+</Card>
+<Card channel="3" title="Channel #3" state="0031" currentSet="0032" currentMax="0033" current="0035" voltageSet="0037" voltageMax="0038" voltage="003A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0004" message="Channel 3: overcurrent protection"/>
+<Overvoltage command="0802" mask="0004" message="Channel 3: overvoltage protection"/>
+</Card>
+<Card channel="4" title="Channel #4" state="0041" currentSet="0042" currentMax="0043" current="0045" voltageSet="0047" voltageMax="0048" voltage="004A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0008" message="Channel 4: overcurrent protection"/>
+<Overvoltage command="0802" mask="0008" message="Channel 4: overvoltage protection"/>
+</Card>
+<Card channel="5" title="Channel #5" state="0051" currentSet="0052" currentMax="0053" current="0055" voltageSet="0057" voltageMax="0058" voltage="005A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0010" message="Channel 5: overcurrent protection"/>
+<Overvoltage command="0802" mask="0010" message="Channel 5: overvoltage protection"/>
+</Card>
+<Card channel="6" title="Channel #6" state="0061" currentSet="0062" currentMax="0063" current="0065" voltageSet="0067" voltageMax="0068" voltage="006A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0020" message="Channel 6: overcurrent protection"/>
+<Overvoltage command="0802" mask="0020" message="Channel 6: overvoltage protection"/>
+</Card>
+<Card channel="7" title="Channel #7" state="0071" currentSet="0072" currentMax="0073" current="0075" voltageSet="0077" voltageMax="0078" voltage="007A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0040" message="Channel 7: overcurrent protection"/>
+<Overvoltage command="0802" mask="0040" message="Channel 7: overvoltage protection"/>
+</Card>
+<Card channel="8" title="Channel #8" state="0081" currentSet="0082" currentMax="0083" current="0085" voltageSet="0087" voltageMax="0088" voltage="008A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0080" message="Channel 8: overcurrent protection"/>
+<Overvoltage command="0802" mask="0080" message="Channel 8: overvoltage protection"/>
+</Card>
+</Cards>
+<Limits>
+<Channel channel="1" title="Channel #1">
+<Limit code="0013" maxCode="0014">Current set up limit</Limit>
+<Limit code="0018" maxCode="0019">Voltage set up limit</Limit>
+<Limit code="0016" maxCode="0014">Overcurrent protection threshold</Limit>
+<Limit code="001B" maxCode="0019">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="2" title="Channel #2">
+<Limit code="0023" maxCode="0024">Current set up limit</Limit>
+<Limit code="0028" maxCode="0029">Voltage set up limit</Limit>
+<Limit code="0026" maxCode="0024">Overcurrent protection threshold</Limit>
+<Limit code="002B" maxCode="0029">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="3" title="Channel #3">
+<Limit code="0033" maxCode="0034">Current set up limit</Limit>
+<Limit code="0038" maxCode="0039">Voltage set up limit</Limit>
+<Limit code="0036" maxCode="0034">Overcurrent protection threshold</Limit>
+<Limit code="003B" maxCode="0039">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="4" title="Channel #4">
+<Limit code="0043" maxCode="0044">Current set up limit</Limit>
+<Limit code="0048" maxCode="0049">Voltage set up limit</Limit>
+<Limit code="0046" maxCode="0044">Overcurrent protection threshold</Limit>
+<Limit code="004B" maxCode="0049">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="5" title="Channel #5">
+<Limit code="0053" maxCode="0054">Current set up limit</Limit>
+<Limit code="0058" maxCode="0059">Voltage set up limit</Limit>
+<Limit code="0056" maxCode="0054">Overcurrent protection threshold</Limit>
+<Limit code="005B" maxCode="0059">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="6" title="Channel #6">
+<Limit code="0063" maxCode="0064">Current set up limit</Limit>
+<Limit code="0068" maxCode="0069">Voltage set up limit</Limit>
+<Limit code="0066" maxCode="0064">Overcurrent protection threshold</Limit>
+<Limit code="006B" maxCode="0069">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="7" title="Channel #7">
+<Limit code="0073" maxCode="0074">Current set up limit</Limit>
+<Limit code="0078" maxCode="0079">Voltage set up limit</Limit>
+<Limit code="0076" maxCode="0074">Overcurrent protection threshold</Limit>
+<Limit code="007B" maxCode="0079">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="8" title="Channel #8">
+<Limit code="0083" maxCode="0084">Current set up limit</Limit>
+<Limit code="0088" maxCode="0089">Voltage set up limit</Limit>
+<Limit code="0086" maxCode="0084">Overcurrent protection threshold</Limit>
+<Limit code="008B" maxCode="0089">Overvoltage protection threshold</Limit>
+</Channel>
+</Limits>
+</Device>
+<Device id="1701">
+<Content>
+<Description>PIC-16 controller. Physical channels: 16. CC/CV output control.</Description>
+</Content>
+<Header>
+<Param real="0AF4">PCB temperature</Param>
+</Header>
+<ParamControls>
+<Param real="0701">Serial Number</Param>
+<Param real="0710">Firmware</Param>
+<Param real="0408">Input Voltage</Param>
+<Param real="0AF4">PCB Temperature</Param>
+</ParamControls>
+<Leds>
+<Led label="Overheat warning">
+<LedMask code="0800" mask="0010" maskColor="#f1c40f" defaultColor="#171717">Overheat warning</LedMask>
+</Led>
+<Led label="Overheat">
+<LedMask code="0800" mask="0020" maskColor="#e74c3c" defaultColor="#171717">Overheat protection</LedMask>
+</Led>
+<Led label="Input voltage exceeds limits">
+<LedMask code="0800" mask="0040" maskColor="#e74c3c" defaultColor="#171717">Input voltage exceeds limits</LedMask>
+</Led>
+<Led label="Overcurrent">
+<LedMask code="0801" mask="FFFF" maskColor="#e74c3c" defaultColor="#171717">Overcurrent protection on one or more channels</LedMask>
+</Led>
+<Led label="Overvoltage">
+<LedMask code="0802" mask="FFFF" maskColor="#e74c3c" defaultColor="#171717">Overvoltage protection on one or more channels</LedMask>
+</Led>
+</Leds>
+<Cards>
+<Card channel="1" title="Channel #1" state="0011" currentSet="0012" currentMax="0013" current="0015" voltageSet="0017" voltageMax="0018" voltage="001A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0001" message="Channel 1: overcurrent protection"/>
+<Overvoltage command="0802" mask="0001" message="Channel 1: overvoltage protection"/>
+</Card>
+<Card channel="2" title="Channel #2" state="0021" currentSet="0022" currentMax="0023" current="0025" voltageSet="0027" voltageMax="0028" voltage="002A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0002" message="Channel 2: overcurrent protection"/>
+<Overvoltage command="0802" mask="0002" message="Channel 2: overvoltage protection"/>
+</Card>
+<Card channel="3" title="Channel #3" state="0031" currentSet="0032" currentMax="0033" current="0035" voltageSet="0037" voltageMax="0038" voltage="003A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0004" message="Channel 3: overcurrent protection"/>
+<Overvoltage command="0802" mask="0004" message="Channel 3: overvoltage protection"/>
+</Card>
+<Card channel="4" title="Channel #4" state="0041" currentSet="0042" currentMax="0043" current="0045" voltageSet="0047" voltageMax="0048" voltage="004A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0008" message="Channel 4: overcurrent protection"/>
+<Overvoltage command="0802" mask="0008" message="Channel 4: overvoltage protection"/>
+</Card>
+<Card channel="5" title="Channel #5" state="0051" currentSet="0052" currentMax="0053" current="0055" voltageSet="0057" voltageMax="0058" voltage="005A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0010" message="Channel 5: overcurrent protection"/>
+<Overvoltage command="0802" mask="0010" message="Channel 5: overvoltage protection"/>
+</Card>
+<Card channel="6" title="Channel #6" state="0061" currentSet="0062" currentMax="0063" current="0065" voltageSet="0067" voltageMax="0068" voltage="006A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0020" message="Channel 6: overcurrent protection"/>
+<Overvoltage command="0802" mask="0020" message="Channel 6: overvoltage protection"/>
+</Card>
+<Card channel="7" title="Channel #7" state="0071" currentSet="0072" currentMax="0073" current="0075" voltageSet="0077" voltageMax="0078" voltage="007A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0040" message="Channel 7: overcurrent protection"/>
+<Overvoltage command="0802" mask="0040" message="Channel 7: overvoltage protection"/>
+</Card>
+<Card channel="8" title="Channel #8" state="0081" currentSet="0082" currentMax="0083" current="0085" voltageSet="0087" voltageMax="0088" voltage="008A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0080" message="Channel 8: overcurrent protection"/>
+<Overvoltage command="0802" mask="0080" message="Channel 8: overvoltage protection"/>
+</Card>
+<Card channel="9" title="Channel #9" state="0091" currentSet="0092" currentMax="0093" current="0095" voltageSet="0097" voltageMax="0098" voltage="009A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0100" message="Channel 9: overcurrent protection"/>
+<Overvoltage command="0802" mask="0100" message="Channel 9: overvoltage protection"/>
+</Card>
+<Card channel="10" title="Channel #10" state="00A1" currentSet="00A2" currentMax="00A3" current="00A5" voltageSet="00A7" voltageMax="00A8" voltage="00AA" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0200" message="Channel 10: overcurrent protection"/>
+<Overvoltage command="0802" mask="0200" message="Channel 10: overvoltage protection"/>
+</Card>
+<Card channel="11" title="Channel #11" state="00B1" currentSet="00B2" currentMax="00B3" current="00B5" voltageSet="00B7" voltageMax="00B8" voltage="00BA" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0400" message="Channel 11: overcurrent protection"/>
+<Overvoltage command="0802" mask="0400" message="Channel 11: overvoltage protection"/>
+</Card>
+<Card channel="12" title="Channel #12" state="00C1" currentSet="00C2" currentMax="00C3" current="00C5" voltageSet="00C7" voltageMax="00C8" voltage="00CA" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="0800" message="Channel 12: overcurrent protection"/>
+<Overvoltage command="0802" mask="0800" message="Channel 12: overvoltage protection"/>
+</Card>
+<Card channel="13" title="Channel #13" state="00D1" currentSet="00D2" currentMax="00D3" current="00D5" voltageSet="00D7" voltageMax="00D8" voltage="00DA" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="1000" message="Channel 13: overcurrent protection"/>
+<Overvoltage command="0802" mask="1000" message="Channel 13: overvoltage protection"/>
+</Card>
+<Card channel="14" title="Channel #14" state="00E1" currentSet="00E2" currentMax="00E3" current="00E5" voltageSet="00E7" voltageMax="00E8" voltage="00EA" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="2000" message="Channel 14: overcurrent protection"/>
+<Overvoltage command="0802" mask="2000" message="Channel 14: overvoltage protection"/>
+</Card>
+<Card channel="15" title="Channel #15" state="00F1" currentSet="00F2" currentMax="00F3" current="00F5" voltageSet="00F7" voltageMax="00F8" voltage="00FA" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="4000" message="Channel 15: overcurrent protection"/>
+<Overvoltage command="0802" mask="4000" message="Channel 15: overvoltage protection"/>
+</Card>
+<Card channel="16" title="Channel #16" state="0101" currentSet="0102" currentMax="0103" current="0105" voltageSet="0107" voltageMax="0108" voltage="010A" runMask="0002" modeMask="0004" start="0008" stop="0010" cc="0020" cv="0040">
+<Overcurrent command="0801" mask="8000" message="Channel 16: overcurrent protection"/>
+<Overvoltage command="0802" mask="8000" message="Channel 16: overvoltage protection"/>
+</Card>
+</Cards>
+<Limits>
+<Channel channel="1" title="Channel #1">
+<Limit code="0013" maxCode="0014">Current set up limit</Limit>
+<Limit code="0018" maxCode="0019">Voltage set up limit</Limit>
+<Limit code="0016" maxCode="0014">Overcurrent protection threshold</Limit>
+<Limit code="001B" maxCode="0019">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="2" title="Channel #2">
+<Limit code="0023" maxCode="0024">Current set up limit</Limit>
+<Limit code="0028" maxCode="0029">Voltage set up limit</Limit>
+<Limit code="0026" maxCode="0024">Overcurrent protection threshold</Limit>
+<Limit code="002B" maxCode="0029">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="3" title="Channel #3">
+<Limit code="0033" maxCode="0034">Current set up limit</Limit>
+<Limit code="0038" maxCode="0039">Voltage set up limit</Limit>
+<Limit code="0036" maxCode="0034">Overcurrent protection threshold</Limit>
+<Limit code="003B" maxCode="0039">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="4" title="Channel #4">
+<Limit code="0043" maxCode="0044">Current set up limit</Limit>
+<Limit code="0048" maxCode="0049">Voltage set up limit</Limit>
+<Limit code="0046" maxCode="0044">Overcurrent protection threshold</Limit>
+<Limit code="004B" maxCode="0049">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="5" title="Channel #5">
+<Limit code="0053" maxCode="0054">Current set up limit</Limit>
+<Limit code="0058" maxCode="0059">Voltage set up limit</Limit>
+<Limit code="0056" maxCode="0054">Overcurrent protection threshold</Limit>
+<Limit code="005B" maxCode="0059">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="6" title="Channel #6">
+<Limit code="0063" maxCode="0064">Current set up limit</Limit>
+<Limit code="0068" maxCode="0069">Voltage set up limit</Limit>
+<Limit code="0066" maxCode="0064">Overcurrent protection threshold</Limit>
+<Limit code="006B" maxCode="0069">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="7" title="Channel #7">
+<Limit code="0073" maxCode="0074">Current set up limit</Limit>
+<Limit code="0078" maxCode="0079">Voltage set up limit</Limit>
+<Limit code="0076" maxCode="0074">Overcurrent protection threshold</Limit>
+<Limit code="007B" maxCode="0079">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="8" title="Channel #8">
+<Limit code="0083" maxCode="0084">Current set up limit</Limit>
+<Limit code="0088" maxCode="0089">Voltage set up limit</Limit>
+<Limit code="0086" maxCode="0084">Overcurrent protection threshold</Limit>
+<Limit code="008B" maxCode="0089">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="9" title="Channel #9">
+<Limit code="0093" maxCode="0094">Current set up limit</Limit>
+<Limit code="0098" maxCode="0099">Voltage set up limit</Limit>
+<Limit code="0096" maxCode="0094">Overcurrent protection threshold</Limit>
+<Limit code="009B" maxCode="0099">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="10" title="Channel #10">
+<Limit code="00A3" maxCode="00A4">Current set up limit</Limit>
+<Limit code="00A8" maxCode="00A9">Voltage set up limit</Limit>
+<Limit code="00A6" maxCode="00A4">Overcurrent protection threshold</Limit>
+<Limit code="00AB" maxCode="00A9">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="11" title="Channel #11">
+<Limit code="00B3" maxCode="00B4">Current set up limit</Limit>
+<Limit code="00B8" maxCode="00B9">Voltage set up limit</Limit>
+<Limit code="00B6" maxCode="00B4">Overcurrent protection threshold</Limit>
+<Limit code="00BB" maxCode="00B9">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="12" title="Channel #12">
+<Limit code="00C3" maxCode="00C4">Current set up limit</Limit>
+<Limit code="00C8" maxCode="00C9">Voltage set up limit</Limit>
+<Limit code="00C6" maxCode="00C4">Overcurrent protection threshold</Limit>
+<Limit code="00CB" maxCode="00C9">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="13" title="Channel #13">
+<Limit code="00D3" maxCode="00D4">Current set up limit</Limit>
+<Limit code="00D8" maxCode="00D9">Voltage set up limit</Limit>
+<Limit code="00D6" maxCode="00D4">Overcurrent protection threshold</Limit>
+<Limit code="00DB" maxCode="00D9">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="14" title="Channel #14">
+<Limit code="00E3" maxCode="00E4">Current set up limit</Limit>
+<Limit code="00E8" maxCode="00E9">Voltage set up limit</Limit>
+<Limit code="00E6" maxCode="00E4">Overcurrent protection threshold</Limit>
+<Limit code="00EB" maxCode="00E9">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="15" title="Channel #15">
+<Limit code="00F3" maxCode="00F4">Current set up limit</Limit>
+<Limit code="00F8" maxCode="00F9">Voltage set up limit</Limit>
+<Limit code="00F6" maxCode="00F4">Overcurrent protection threshold</Limit>
+<Limit code="00FB" maxCode="00F9">Overvoltage protection threshold</Limit>
+</Channel>
+<Channel channel="16" title="Channel #16">
+<Limit code="0103" maxCode="0104">Current set up limit</Limit>
+<Limit code="0108" maxCode="0109">Voltage set up limit</Limit>
+<Limit code="0106" maxCode="0104">Overcurrent protection threshold</Limit>
+<Limit code="010B" maxCode="0109">Overvoltage protection threshold</Limit>
+</Channel>
+</Limits>
+</Device>
+</GUI>

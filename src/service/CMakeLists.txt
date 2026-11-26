@@ -1,0 +1,6 @@
+add_library(maiman_pbs_service STATIC DeviceService.h DeviceService.cpp)
+add_library(MaimanPBS::Service ALIAS maiman_pbs_service)
+set_target_properties(maiman_pbs_service PROPERTIES AUTOMOC ON)
+target_compile_features(maiman_pbs_service PUBLIC cxx_std_17)
+target_include_directories(maiman_pbs_service PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(maiman_pbs_service PUBLIC MaimanPBS::Communication MaimanPBS::Model)

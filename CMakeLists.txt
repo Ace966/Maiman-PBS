@@ -12,6 +12,7 @@ add_subdirectory(src/communication)
 add_subdirectory(src/model)
 add_subdirectory(src/config)
 add_subdirectory(src/gui)
+add_subdirectory(src/service)
 
 include(CTest)
 if(BUILD_TESTING)

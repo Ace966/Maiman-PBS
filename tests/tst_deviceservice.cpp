@@ -55,6 +55,13 @@ public:
 class DeviceServiceTests : public QObject {
     Q_OBJECT
 private slots:
+    void pollingSchedule();
+    void pollingManualTrafficAndWritePriority();
+    void pollingFailure_data();
+    void pollingFailure();
+    void pollingListChanges();
+    void pollingStaleReconnect();
+    void pollingRejectedAdmission();
     void lifecycle();
     void readUpdatesRepository();
     void failedRead_data();
@@ -445,6 +452,203 @@ void DeviceServiceTests::borrowedDependenciesAndExistingConnection() {
     connection.shutdown();
     QCOMPARE(source->created, source->destroyed);
     QCOMPARE(source->affinityErrors, 0);
+}
+
+void DeviceServiceTests::pollingSchedule() {
+    Fixture f;
+    using Priority = DeviceService::PollPriority;
+    QVERIFY(f.service.setPollingList({{0x0017, Priority::High}, {0x0801, Priority::Low},
+                                      {0x0015, Priority::High}}));
+    QTest::qWait(70);
+    QCOMPARE(f.source->submissions(), 0);
+    f.open();
+    QTRY_COMPARE(f.service.state(), State::Connected);
+    const QList<quint16> order{0x0017, 0x0015, 0x0017, 0x0015, 0x0801,
+                              0x0017, 0x0015, 0x0017, 0x0015, 0x0801};
+    QByteArray wire;
+    for (int i = 0; i < order.size(); ++i) {
+        QTRY_COMPARE(f.source->submissions(), i + 1);
+        QCOMPARE(f.connection.outstanding(), 1);
+        wire += PICTextProtocol::encodeRead(order[i]);
+        QCOMPARE(f.source->bytes(), wire);
+        if (i == 0) {
+            QTest::qWait(160); // Multiple timer periods cannot enqueue another polling Read.
+            QCOMPARE(f.source->submissions(), 1);
+            QCOMPARE(f.connection.outstanding(), 1);
+        }
+        f.input("K" + QByteArray::number(order[i], 16).rightJustified(4, '0').toUpper() + " 0164");
+        QTRY_COMPARE(f.requests.size(), i + 1);
+        QCOMPARE(f.result(i).outcome, Outcome::ReadResponse);
+    }
+    QVERIFY(f.service.setPollingList({}));
+    QCOMPARE(order.count(0x0017), 4);
+    QCOMPARE(order.count(0x0015), 4);
+    QCOMPARE(order.count(0x0801), 2);
+    QCOMPARE(f.repository.value(0x0017).toDouble(), 3.56);
+    QCOMPARE(f.repository.value(0x0015).toDouble(), 35.6);
+    QCOMPARE(f.repository.value(0x0801).toUInt(), uint(356));
+    f.finish();
+}
+
+void DeviceServiceTests::pollingManualTrafficAndWritePriority() {
+    Fixture f;
+    using Priority = DeviceService::PollPriority;
+    QVERIFY(f.service.setPollingList({{0x0017, Priority::High}, {0x0801, Priority::Low}}));
+    f.open();
+    QTRY_COMPARE(f.source->submissions(), 1);
+    QVERIFY(f.connection.read(0x0017, 5000)); // Same register as the active polling request.
+    QVERIFY(f.connection.write(0x0801, 9));
+    f.input("K0017 0164");
+    QTRY_COMPARE(f.source->submissions(), 3);
+    QTRY_COMPARE(f.requests.size(), 2);
+    QCOMPARE(f.result(1).outcome, Outcome::BytesSent);
+    QCOMPARE(f.source->bytes(), PICTextProtocol::encodeRead(0x0017)
+        + PICTextProtocol::encodeWrite(0x0801, 9) + PICTextProtocol::encodeRead(0x0017));
+    QVERIFY(!f.repository.value(0x0801).isValid());
+    QTest::qWait(160);
+    QCOMPARE(f.source->submissions(), 3); // No poll can be confused with the outstanding manual Read.
+    QCOMPARE(f.connection.outstanding(), 1);
+    f.input("K0017 01F4");
+    QTRY_COMPARE(f.requests.size(), 3);
+    QCOMPARE(f.repository.value(0x0017).toDouble(), 5.0);
+    QTRY_COMPARE(f.source->submissions(), 4);
+    QVERIFY(f.source->bytes().endsWith(PICTextProtocol::encodeRead(0x0017))); // Second High pass.
+    QVERIFY(f.service.setPollingList({}));
+    f.input("K0017 01F4");
+    QTRY_COMPARE(f.requests.size(), 4);
+    f.finish();
+}
+
+void DeviceServiceTests::pollingFailure_data() {
+    QTest::addColumn<int>("outcome");
+    QTest::addColumn<QByteArray>("frame");
+    QTest::newRow("device-error") << int(Outcome::DeviceError) << QByteArray("EFFFF");
+    QTest::newRow("nonexistent") << int(Outcome::NonexistentParameter) << QByteArray("K0000 0000");
+    QTest::newRow("timeout") << int(Outcome::Timeout) << QByteArray();
+    QTest::newRow("transport") << int(Outcome::TransportError) << QByteArray();
+}
+
+void DeviceServiceTests::pollingFailure() {
+    QFETCH(int, outcome);
+    QFETCH(QByteArray, frame);
+    Fixture f;
+    QVERIFY(f.repository.update(0x0017, 100));
+    QVERIFY(f.service.setPollingList({{0x0017, DeviceService::PollPriority::Low}}));
+    f.open();
+    QTRY_COMPARE(f.source->submissions(), 1);
+    if (outcome == int(Outcome::TransportError)) {
+        QMutexLocker lock(&f.source->mutex);
+        f.source->fault();
+        f.source->changed.wakeAll();
+    } else if (!frame.isEmpty()) {
+        f.input(frame);
+    }
+    QTRY_COMPARE(f.requests.size(), 1);
+    QCOMPARE(f.result(0).outcome, Outcome(outcome));
+    QCOMPARE(f.repository.value(0x0017).toDouble(), 1.0);
+    QCOMPARE(f.changes.size(), 1);
+    if (outcome == int(Outcome::Timeout) || outcome == int(Outcome::TransportError)) {
+        QCOMPARE(f.service.state(), State::Error);
+        QTest::qWait(160);
+        QCOMPARE(f.source->submissions(), 1);
+    } else {
+        QCOMPARE(f.service.state(), State::Connected);
+        QTRY_COMPARE(f.source->submissions(), 2); // Request-level failure releases the single poll slot.
+    }
+    f.finish();
+}
+
+void DeviceServiceTests::pollingListChanges() {
+    Fixture f;
+    using Priority = DeviceService::PollPriority;
+    f.open();
+    QTRY_COMPARE(f.service.state(), State::Connected);
+    QVERIFY(f.service.setPollingList({}));
+    QTest::qWait(120);
+    QCOMPARE(f.source->submissions(), 0);
+    QVERIFY(!f.service.setPollingList({{0xF000, Priority::High}}));
+    QVERIFY(!f.service.setPollingList({{0x0017, Priority(99)}}));
+    QVERIFY(!f.service.setPollingList({{0x0017, Priority::High}, {0x0017, Priority::Low}}));
+    QTest::qWait(70);
+    QCOMPARE(f.source->submissions(), 0);
+    QVERIFY(f.service.setPollingList({{0x0017, Priority::High}}));
+    QVERIFY(!f.service.setPollingList({{0xF000, Priority::Low}})); // Invalid replacement is atomic.
+    QTRY_COMPARE(f.source->submissions(), 1);
+    QCOMPARE(f.source->bytes(), PICTextProtocol::encodeRead(0x0017));
+    QVERIFY(f.service.setPollingList({{0x0801, Priority::Low}}));
+    QTest::qWait(120);
+    QCOMPARE(f.source->submissions(), 1); // Replacing the list cannot release the admitted poll slot.
+    f.input("K0017 0164");
+    QTRY_COMPARE(f.requests.size(), 1);
+    QTRY_COMPARE(f.source->submissions(), 2);
+    QVERIFY(f.source->bytes().endsWith(PICTextProtocol::encodeRead(0x0801)));
+    QVERIFY(f.service.setPollingList({}));
+    f.input("K0801 0001");
+    QTRY_COMPARE(f.requests.size(), 2);
+    QCOMPARE(f.repository.value(0x0801).toUInt(), uint(1));
+    QTest::qWait(120);
+    QCOMPARE(f.source->submissions(), 2);
+    f.finish();
+}
+
+void DeviceServiceTests::pollingStaleReconnect() {
+    Fixture f;
+    using Priority = DeviceService::PollPriority;
+    QVERIFY(f.service.setPollingList({{0x0017, Priority::High}}));
+    f.open();
+    QTRY_COMPARE(f.source->submissions(), 1);
+    QSemaphore emitted;
+    auto* worker = f.connection.findChild<CommunicationWorker*>();
+    QVERIFY(worker);
+    const auto barrier = connect(worker, &CommunicationWorker::requestFinished, worker,
+        [&emitted](const Result&) { emitted.release(); }, Qt::DirectConnection);
+    f.input("K0017 0164");
+    const bool ready = emitted.tryAcquire(1, 2000); // Leave old success queued at the facade.
+    disconnect(barrier);
+    QVERIFY(ready);
+    QVERIFY(f.service.disconnectDevice());
+    QTRY_COMPARE(f.connectionChanges.size(), 2);
+    QCOMPARE(f.requests.size(), 1);
+    QVERIFY(!f.repository.value(0x0017).isValid());
+    QTest::qWait(120);
+    QCOMPARE(f.source->submissions(), 1);
+    QVERIFY(f.service.setPollingList({{0x0801, Priority::Low}}));
+    f.open();
+    QTRY_COMPARE(f.source->submissions(), 2);
+    QCOMPARE(f.service.state(), State::Connected);
+    QVERIFY(f.source->bytes().endsWith(PICTextProtocol::encodeRead(0x0801)));
+    QVERIFY(f.service.setPollingList({}));
+    f.input("K0801 0001");
+    QTRY_COMPARE(f.requests.size(), 2);
+    QVERIFY(!f.repository.value(0x0017).isValid());
+    QCOMPARE(f.repository.value(0x0801).toUInt(), uint(1));
+    f.finish();
+}
+
+void DeviceServiceTests::pollingRejectedAdmission() {
+    Fixture f;
+    f.open();
+    QTRY_COMPARE(f.service.state(), State::Connected);
+    // Final shutdown deliberately bypasses lifecycle only to force real facade Read rejection.
+    // Normal application teardown disconnects through DeviceService first.
+    f.connection.shutdown();
+    QVERIFY(!f.connection.read(0x0017));
+    auto* timer = f.service.findChild<QTimer*>();
+    QVERIFY(timer);
+    QSignalSpy wakeups(timer, &QTimer::timeout);
+    QVERIFY(f.service.setPollingList({{0x0017, DeviceService::PollPriority::High}}));
+    QTRY_COMPARE(wakeups.size(), 1);
+    QTest::qWait(120);
+    QCOMPARE(wakeups.size(), 1); // Closed transport cannot cause repeated admission attempts.
+    QVERIFY(!timer->isActive());
+    QCOMPARE(f.connection.outstanding(), 0);
+    QVERIFY(f.requests.isEmpty());
+    QCOMPARE(f.source->submissions(), 0);
+    QVERIFY(f.service.setPollingList({}));
+    const int stopped = wakeups.size();
+    QTest::qWait(70);
+    QCOMPARE(wakeups.size(), stopped);
+    f.finish();
 }
 
 QTEST_GUILESS_MAIN(DeviceServiceTests)
